@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mappa segnalazioni peonie</title>
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --bg: #fff7fb;
+      --surface: #ffffff;
+      --surface-soft: #fdf2f8;
+      --text: #231323;
+      --muted: #6b5c68;
+      --line: #f1d9e6;
+      --accent: #db2777;
+      --accent-dark: #9d174d;
+      --accent-soft: #fce7f3;
+      --shadow: 0 18px 45px rgba(157, 23, 77, 0.16);
+      --radius: 22px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(244, 114, 182, 0.24), transparent 22rem),
+        radial-gradient(circle at 88% 18%, rgba(190, 242, 100, 0.18), transparent 20rem),
+        linear-gradient(180deg, #fffafd 0%, var(--bg) 58%, #ffffff 100%);
+      color: var(--text);
+    }
+
+    .page {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 14px;
+      padding: 16px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+      z-index: 10;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(252, 231, 243, 0.88);
+      color: var(--accent-dark);
+      border: 1px solid rgba(219, 39, 119, 0.16);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), #f472b6);
+    }
+
+    h1 {
+      font-size: clamp(1.35rem, 4vw, 2rem);
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.92rem;
+      margin-top: 4px;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    button, .link-button {
+      appearance: none;
+      border: 0;
+      text-decoration: none;
+      cursor: pointer;
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-weight: 800;
+      font-size: 0.9rem;
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+      border: 1px solid rgba(219, 39, 119, 0.18);
+    }
+
+    button:hover, .link-button:hover {
+      background: #fbcfe8;
+    }
+
+    .map-shell {
+      position: relative;
+      min-height: 520px;
+      overflow: hidden;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      background: var(--surface);
+    }
+
+    #map {
+      width: 100%;
+      height: calc(100vh - 145px);
+      min-height: 520px;
+      z-index: 1;
+      background: #e5e7eb;
+    }
+
+    .panel {
+      position: absolute;
+      left: 16px;
+      bottom: 16px;
+      width: min(360px, calc(100% - 32px));
+      z-index: 500;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: 0 14px 35px rgba(35, 19, 35, 0.16);
+      backdrop-filter: blur(12px);
+    }
+
+    .panel h2 {
+      font-size: 1rem;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .stat {
+      background: var(--surface-soft);
+      border: 1px solid rgba(219, 39, 119, 0.12);
+      border-radius: 14px;
+      padding: 8px 10px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 1.15rem;
+      color: var(--accent-dark);
+    }
+
+    .stat span {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .legend {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid rgba(35, 19, 35, 0.18);
+      flex: 0 0 auto;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .error {
+      color: #b91c1c;
+      font-weight: 700;
+    }
+
+    .leaflet-popup-content {
+      margin: 12px 14px;
+      min-width: 220px;
+    }
+
+    .popup-title {
+      font-weight: 900;
+      color: var(--accent-dark);
+      margin-bottom: 6px;
+      font-size: 1rem;
+    }
+
+    .popup-row {
+      margin: 3px 0;
+      color: #3f3340;
+      font-size: 0.9rem;
+    }
+
+    .popup-row strong {
+      color: #231323;
+    }
+
+    .popup-photos {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .popup-photos a {
+      display: block;
+      text-decoration: none;
+      color: var(--accent-dark);
+      background: var(--accent-soft);
+      border-radius: 10px;
+      padding: 6px 7px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    @media (max-width: 760px) {
+      .page {
+        padding: 10px;
+        gap: 10px;
+      }
+
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+        border-radius: 18px;
+        padding: 14px;
+      }
+
+      .actions {
+        width: 100%;
+        justify-content: stretch;
+      }
+
+      button, .link-button {
+        flex: 1;
+        text-align: center;
+      }
+
+      .map-shell {
+        border-radius: 18px;
+      }
+
+      #map {
+        height: calc(100vh - 190px);
+        min-height: 560px;
+      }
+
+      .panel {
+        left: 10px;
+        bottom: 10px;
+        width: calc(100% - 20px);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <header>
+      <div class="title-block">
+        <div class="badge"><span class="dot"></span> Peonia survey</div>
+        <h1>Mappa segnalazioni peonie</h1>
+        <p class="subtitle">Punti caricati da Supabase, visualizzati su base cartografica Esri.</p>
+      </div>
+
+      <div class="actions">
+        <a class="link-button" href="index.html">Home</a>
+        <button type="button" id="btnReload">Aggiorna dati</button>
+      </div>
+    </header>
+
+    <section class="map-shell" aria-label="Mappa delle segnalazioni">
+      <div id="map"></div>
+
+      <aside class="panel" aria-label="Indice delle segnalazioni">
+        <h2>Indice segnalazioni</h2>
+
+        <div class="stats">
+          <div class="stat">
+            <strong id="totalPoints">0</strong>
+            <span>punti totali</span>
+          </div>
+          <div class="stat">
+            <strong id="lastUpdate">—</strong>
+            <span>ultimo aggiornamento</span>
+          </div>
+        </div>
+
+        <div class="legend">
+          <div class="legend-row"><span class="swatch" style="background:#f9a8d4"></span> 1-9 individui</div>
+          <div class="legend-row"><span class="swatch" style="background:#f472b6"></span> 10-19 individui</div>
+          <div class="legend-row"><span class="swatch" style="background:#db2777"></span> 20-29 individui</div>
+          <div class="legend-row"><span class="swatch" style="background:#9d174d"></span> Più di 30 individui</div>
+          <div class="legend-row"><span class="swatch" style="background:#64748b"></span> dato non indicato</div>
+        </div>
+
+        <div class="status" id="status">Caricamento dati…</div>
+      </aside>
+    </section>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://bvdabdniussqmjjxvrdb.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2ZGFiZG5pdXNzcW1qanh2cmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNjMwMTAsImV4cCI6MjA3NzkzOTAxMH0.pMKdERP0lygqVoYSsEI4eH60BYcXr5QwJNhxf1ZUddM";
+    const TABLE = "points";
+
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const map = L.map("map", {
+      zoomControl: true,
+      preferCanvas: true
+    }).setView([40.15, 9.05], 7);
+
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}", {
+      maxZoom: 19,
+      attribution: "Tiles &copy; Esri &mdash; Sources: Esri, HERE, Garmin, FAO, NOAA, USGS, &copy; OpenStreetMap contributors, and the GIS User Community"
+    }).addTo(map);
+
+    const layer = L.featureGroup().addTo(map);
+
+    function setStatus(message, isError = false) {
+      const el = document.getElementById("status");
+      el.textContent = message || "";
+      el.className = "status" + (isError ? " error" : "");
+    }
+
+    function getColor(value) {
+      const v = String(value || "").trim().toLowerCase();
+      if (v === "1-9") return "#f9a8d4";
+      if (v === "10-19") return "#f472b6";
+      if (v === "20-29") return "#db2777";
+      if (v === "più di 30" || v === "piu di 30" || v === ">30" || v === "30+") return "#9d174d";
+      return "#64748b";
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function formatDate(value) {
+      if (!value) return "n.d.";
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return "n.d.";
+      return d.toLocaleString("it-IT", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+
+    function photoLinks(p) {
+      const photos = [
+        ["Sito", p.photo_site_url || p.photo_url],
+        ["Insieme", p.photo_group_url],
+        ["Pianta", p.photo_plant_url],
+        ["Foglia", p.photo_leaf_under_url]
+      ].filter(([, url]) => !!url);
+
+      if (!photos.length) return "";
+
+      return `
+        <div class="popup-photos">
+          ${photos.map(([label, url]) =>
+            `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(label)}</a>`
+          ).join("")}
+        </div>
+      `;
+    }
+
+    function makePopup(p) {
+      return `
+        <div class="popup-title">Segnalazione peonia</div>
+        <div class="popup-row"><strong>Rilevatore:</strong> ${escapeHtml(p.compiler || p.name || "n.d.")}</div>
+        <div class="popup-row"><strong>Individui stimati:</strong> ${escapeHtml(p.individuals_estimated || p.land_cover || "n.d.")}</div>
+        <div class="popup-row"><strong>Data:</strong> ${escapeHtml(formatDate(p.created_at))}</div>
+        <div class="popup-row"><strong>Coordinate:</strong> ${Number(p.lat).toFixed(6)}, ${Number(p.lon).toFixed(6)}</div>
+        ${photoLinks(p)}
+      `;
+    }
+
+    async function loadPoints() {
+      setStatus("Caricamento dati…");
+      layer.clearLayers();
+
+      const { data, error } = await sb
+        .from(TABLE)
+        .select("id, name, compiler, individuals_estimated, land_cover, lat, lon, created_at, photo_site_url, photo_group_url, photo_plant_url, photo_leaf_under_url, photo_url")
+        .not("lat", "is", null)
+        .not("lon", "is", null)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error(error);
+        setStatus("Errore caricamento dati: " + (error.message || "controlla policy Supabase/RLS"), true);
+        return;
+      }
+
+      const valid = (data || []).filter(p =>
+        Number.isFinite(Number(p.lat)) &&
+        Number.isFinite(Number(p.lon)) &&
+        Number(p.lat) >= -90 &&
+        Number(p.lat) <= 90 &&
+        Number(p.lon) >= -180 &&
+        Number(p.lon) <= 180
+      );
+
+      valid.forEach(p => {
+        const category = p.individuals_estimated || p.land_cover || "";
+        const color = getColor(category);
+
+        const marker = L.circleMarker([Number(p.lat), Number(p.lon)], {
+          radius: 8,
+          color: "#ffffff",
+          weight: 2,
+          fillColor: color,
+          fillOpacity: 0.9
+        });
+
+        marker.bindPopup(makePopup(p));
+        marker.addTo(layer);
+      });
+
+      document.getElementById("totalPoints").textContent = String(valid.length);
+      document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString("it-IT", {
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+
+      if (valid.length > 0) {
+        map.fitBounds(layer.getBounds(), { padding: [30, 30], maxZoom: 15 });
+        setStatus("Dati caricati correttamente.");
+      } else {
+        setStatus("Nessun punto disponibile.");
+      }
+
+      setTimeout(() => map.invalidateSize(), 150);
+    }
+
+    document.getElementById("btnReload").addEventListener("click", () => {
+      map.invalidateSize();
+      loadPoints();
+    });
+
+    window.addEventListener("load", () => {
+      setTimeout(() => {
+        map.invalidateSize();
+        loadPoints();
+      }, 250);
+    });
+
+    window.addEventListener("resize", () => {
+      map.invalidateSize();
+    });
+  </script>
+</body>
+</html>
