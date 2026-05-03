@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Survey Peonie</title>
+  <title>Survey Peonia</title>
 
   <style>
     :root {
@@ -232,6 +232,150 @@
       border-radius: 999px;
       padding: 4px 10px;
     }
+
+    .privacy-link {
+      margin-top: 14px;
+      border: 0;
+      background: transparent;
+      color: var(--accent-dark);
+      font: inherit;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .privacy-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(35, 19, 35, 0.36);
+      backdrop-filter: blur(7px);
+    }
+
+    .privacy-overlay.is-visible {
+      display: flex;
+    }
+
+    .privacy-modal {
+      width: min(100%, 680px);
+      max-height: min(88vh, 760px);
+      overflow: auto;
+      background: rgba(255, 255, 255, 0.97);
+      color: var(--text);
+      border: 1px solid rgba(219, 39, 119, 0.18);
+      border-radius: 28px;
+      box-shadow: 0 30px 90px rgba(80, 24, 57, 0.28);
+      padding: 26px;
+      position: relative;
+    }
+
+    .privacy-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 11px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .privacy-modal h2 {
+      font-size: clamp(1.45rem, 4vw, 2rem);
+      margin-bottom: 12px;
+    }
+
+    .privacy-modal p,
+    .privacy-modal li {
+      color: var(--muted);
+      font-size: 0.94rem;
+      line-height: 1.55;
+    }
+
+    .privacy-modal ul {
+      margin: 12px 0 0 1.15rem;
+    }
+
+    .privacy-box {
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 18px;
+      background: linear-gradient(145deg, #fff7fb, #ffffff);
+      border: 1px solid var(--line);
+    }
+
+    .privacy-actions {
+      margin-top: 18px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .privacy-check {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      color: var(--text);
+      font-weight: 650;
+      line-height: 1.4;
+    }
+
+    .privacy-check input {
+      width: 20px;
+      height: 20px;
+      margin-top: 1px;
+      accent-color: var(--accent);
+      flex: 0 0 auto;
+    }
+
+    .privacy-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .privacy-btn {
+      border: 0;
+      border-radius: 999px;
+      padding: 11px 18px;
+      font: inherit;
+      font-weight: 850;
+      cursor: pointer;
+    }
+
+    .privacy-btn.primary {
+      background: linear-gradient(135deg, var(--accent), #f472b6);
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(219, 39, 119, 0.20);
+    }
+
+    .privacy-btn.primary:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .privacy-btn.secondary {
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+    }
+
+    @media (max-width: 700px) {
+      .privacy-modal { padding: 20px; border-radius: 22px; }
+      .privacy-buttons { justify-content: stretch; }
+      .privacy-btn { width: 100%; }
+    }
+
   </style>
 </head>
 <body>
@@ -240,15 +384,16 @@
       <div class="badge"><span class="dot"></span> Peonia survey</div>
       <h1>Monitoraggio peonie</h1>
       <p class="subtitle">
-        Accesso rapido al survey di campo e alla mappa delle segnalazioni raccolte.
+        Accesso rapido alla scheda di campo e alla mappa delle segnalazioni raccolte.
       </p>
+      <button class="privacy-link" id="openPrivacy" type="button">Informativa sul trattamento dei dati</button>
     </header>
 
     <section class="grid" aria-label="Strumenti disponibili">
       <a class="card" href="survey.htm">
         <div>
           <div class="icon" aria-hidden="true">🌸</div>
-          <h2>Scheda rilevamento</h2>
+          <h2>Survey peonia</h2>
           <p>
             Compilazione della segnalazione in campo con posizione GPS, numero di individui stimati e quattro fotografie.
           </p>
@@ -264,7 +409,7 @@
           <div class="icon" aria-hidden="true">🗺️</div>
           <h2>Mappa</h2>
           <p>
-            Visualizzazione cartografica delle segnalazioni raccolte.
+            Visualizzazione cartografica delle segnalazioni raccolte. Sarà collegata al layer Supabase appena disponibile.
           </p>
         </div>
         <div class="footer">
@@ -274,5 +419,91 @@
       </div>
     </section>
   </main>
+
+
+  <div class="privacy-overlay" id="privacyModal" aria-hidden="true">
+    <div class="privacy-modal" role="dialog" aria-modal="true" aria-labelledby="privacyTitle">
+      <div class="privacy-kicker"><span class="dot"></span> Informativa dati</div>
+      <h2 id="privacyTitle">Trattamento dei dati personali</h2>
+      <p>
+        I dati raccolti tramite questa applicazione, inclusi posizione geografica, immagini e informazioni inserite nel modulo,
+        sono trattati esclusivamente per finalità scientifiche, di monitoraggio ambientale, documentazione e gestione del progetto
+        relativo alle segnalazioni di peonie.
+      </p>
+
+      <div class="privacy-box">
+        <p>
+          Le informazioni potranno essere archiviate su piattaforme digitali e utilizzate in forma tecnica, statistica o aggregata
+          per analisi, report, elaborazioni cartografiche e attività di ricerca. I dati personali eventualmente forniti dal segnalatore
+          non saranno diffusi pubblicamente senza consenso esplicito.
+        </p>
+        <ul>
+          <li>La posizione geografica della segnalazione può essere registrata e associata al punto rilevato.</li>
+          <li>Le fotografie inviate devono riguardare il sito, le piante o elementi utili al riconoscimento, evitando persone riconoscibili quando non necessario.</li>
+          <li>L’utente è responsabile dei contenuti caricati e dichiara di non inviare dati personali di terzi senza autorizzazione.</li>
+          <li>Per eventuali richieste di informazioni o segnalazioni, è possibile scrivere a 1234@5678.90.</li>
+        </ul>
+      </div>
+
+      <div class="privacy-actions">
+        <label class="privacy-check">
+          <input type="checkbox" id="privacyAccept" />
+          <span>Dichiaro di aver letto l’informativa e accetto il trattamento dei dati per le finalità sopra indicate.</span>
+        </label>
+
+        <div class="privacy-buttons">
+          <button class="privacy-btn secondary" id="privacyClose" type="button">Chiudi</button>
+          <button class="privacy-btn primary" id="privacyEnter" type="button" disabled>Accetta ed entra</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const modal = document.getElementById('privacyModal');
+      const openBtn = document.getElementById('openPrivacy');
+      const closeBtn = document.getElementById('privacyClose');
+      const accept = document.getElementById('privacyAccept');
+      const enter = document.getElementById('privacyEnter');
+      const storageKey = 'peoniePrivacyAccepted';
+
+      function openModal(forceRead) {
+        if (!modal) return;
+        if (forceRead && accept) accept.checked = false;
+        if (enter) enter.disabled = !(accept && accept.checked);
+        modal.classList.add('is-visible');
+        modal.setAttribute('aria-hidden', 'false');
+      }
+
+      function closeModal() {
+        if (!modal) return;
+        modal.classList.remove('is-visible');
+        modal.setAttribute('aria-hidden', 'true');
+      }
+
+      if (openBtn) openBtn.addEventListener('click', function () { openModal(false); });
+      if (closeBtn) closeBtn.addEventListener('click', closeModal);
+      if (accept && enter) {
+        accept.addEventListener('change', function () {
+          enter.disabled = !accept.checked;
+        });
+        enter.addEventListener('click', function () {
+          if (!accept.checked) return;
+          localStorage.setItem(storageKey, 'true');
+          closeModal();
+        });
+      }
+
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && localStorage.getItem(storageKey)) closeModal();
+      });
+
+      if (!localStorage.getItem(storageKey)) {
+        openModal(true);
+      }
+    })();
+  </script>
+
 </body>
 </html>
