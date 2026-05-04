@@ -254,7 +254,7 @@
           <label>Posizione *</label>
           <button id="btnGeo" class="gps-button" type="button">
             <span class="sat" aria-hidden="true">🛰️</span>
-            <span>Posizione GPS</span>
+            <span>Acquisisci la posizione</span>
           </button>
           <div class="mini">Premi per acquisire automaticamente la posizione dal telefono.</div>
 
@@ -271,7 +271,7 @@
         </div>
 
         <div class="full">
-          <label>Numero individui stimati *</label>
+          <label>Numero piante stimate *</label>
 
           <input id="individuals_estimated" type="hidden" value="">
           <div class="choice-grid" role="group" aria-label="Numero individui stimati">
@@ -299,13 +299,13 @@
 
             <label class="photo-tile" for="photo_plant" id="tile_photo_plant">
               <span class="photo-icon" aria-hidden="true">🌸</span>
-              <span class="photo-title">Foto della pianta</span>
+              <span class="photo-title">Foto della pianta più grande</span>
               <span class="photo-status" id="status_photo_plant">Tocca per scattare</span>
             </label>
 
             <label class="photo-tile" for="photo_leaf_under" id="tile_photo_leaf_under">
               <span class="photo-icon" aria-hidden="true">🍃</span>
-              <span class="photo-title">Pagina inferiore foglia</span>
+              <span class="photo-title">Pagina inferiore della foglia</span>
               <span class="photo-status" id="status_photo_leaf_under">Tocca per scattare</span>
             </label>
           </div>
@@ -347,7 +347,7 @@
       const t = $('toast'); if(!t) return;
       t.textContent = msg || 'OK';
       t.classList.add('show'); clearTimeout(showToast._t);
-      showToast._t = setTimeout(()=> t.classList.remove('show'), 2600);
+      showToast._t = setTimeout(()=> t.classList.remove('show'), 4000);
     }
     function setStatus(msg, cls){ const el=$('status'); el.textContent = msg||''; el.className='mini ' + (cls||''); }
     function setCacheStatus(msg, cls){ const el=$('cacheStatus'); el.textContent = msg||''; el.className='mini ' + (cls||''); }
@@ -608,7 +608,7 @@
         const record = await buildRecordFromForm();
         try{
           await sendRecordToSupabase(record);
-          showToast('Segnalazione caricata sul web ✓');
+          showToast('Segnalazione inviata. Grazie mille!');
           setStatus('Segnalazione caricata correttamente.', 'ok');
           resetFormKeepCompiler();
         }catch(netErr){
