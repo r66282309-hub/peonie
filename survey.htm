@@ -92,6 +92,109 @@
       .coord-grid{grid-template-columns:1fr;}
     }
 
+
+    .gps-readonly{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-top:10px;
+    }
+    .gps-readonly .coord-field label{
+      font-size:12px;
+      color:var(--muted);
+      margin-bottom:4px;
+      font-weight:700;
+    }
+    .gps-readonly input{
+      font-size:13px;
+      padding:10px;
+      background:#f1f5f9;
+      color:#475569;
+      border:1px solid var(--line);
+    }
+    .choice-grid{
+      display:grid;
+      grid-template-columns:repeat(4, minmax(0, 1fr));
+      gap:10px;
+    }
+    .choice-btn{
+      min-height:58px;
+      border-radius:16px;
+      background:#ffffff;
+      color:var(--brand);
+      border:2px solid var(--line);
+      box-shadow:none;
+      font-size:17px;
+      font-weight:900;
+      padding:12px 8px;
+    }
+    .choice-btn.is-selected{
+      background:linear-gradient(135deg, var(--brand), #db2777);
+      color:#fff;
+      border-color:transparent;
+      box-shadow:0 8px 22px rgba(22,101,52,.22);
+    }
+    .photo-grid{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:12px;
+    }
+    .photo-tile{
+      min-height:136px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      text-align:center;
+      background:#ffffff;
+      border:2px dashed var(--line);
+      border-radius:18px;
+      padding:14px 10px;
+      cursor:pointer;
+      transition:border-color .15s ease, background .15s ease, transform .15s ease;
+    }
+    .photo-tile:hover{
+      border-color:var(--brand2);
+      background:#f0fdf4;
+    }
+    .photo-tile:active{
+      transform:scale(.98);
+    }
+    .photo-tile.has-file{
+      border-style:solid;
+      border-color:var(--brand2);
+      background:#f0fdf4;
+    }
+    .photo-icon{
+      font-size:30px;
+      line-height:1;
+    }
+    .photo-title{
+      font-weight:900;
+      color:var(--ink);
+      font-size:15px;
+      line-height:1.2;
+    }
+    .photo-status{
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.25;
+    }
+    .hidden-file{
+      position:absolute;
+      width:1px;
+      height:1px;
+      opacity:0;
+      pointer-events:none;
+    }
+    @media (max-width:520px){
+      .choice-grid{grid-template-columns:repeat(2, minmax(0, 1fr));}
+      .photo-grid{grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px;}
+      .photo-tile{min-height:126px; padding:12px 8px;}
+      .gps-readonly{grid-template-columns:1fr;}
+    }
+
   </style>
 
   <link rel="manifest" href="manifest.json">
@@ -116,50 +219,65 @@
             <span class="sat" aria-hidden="true">🛰️</span>
             <span>Posizione GPS</span>
           </button>
-          <div class="mini">Premi il pulsante per acquisire automaticamente le coordinate dal telefono.</div>
+          <div class="mini">Premi per acquisire automaticamente la posizione dal telefono.</div>
 
-          <div class="coord-grid">
-            <div>
-              <label for="lat">Latitudine</label>
-              <input id="lat" type="number" step="any" inputmode="decimal" placeholder="automatico da GPS">
+          <div class="gps-readonly">
+            <div class="coord-field">
+              <label for="lat">Latitudine acquisita</label>
+              <input id="lat" type="text" inputmode="decimal" placeholder="non acquisita" readonly>
             </div>
-            <div>
-              <label for="lon">Longitudine</label>
-              <input id="lon" type="number" step="any" inputmode="decimal" placeholder="automatico da GPS">
+            <div class="coord-field">
+              <label for="lon">Longitudine acquisita</label>
+              <input id="lon" type="text" inputmode="decimal" placeholder="non acquisita" readonly>
             </div>
           </div>
         </div>
 
         <div class="full">
-          <label for="individuals_estimated">Numero individui stimati *</label>
-          <select id="individuals_estimated">
-            <option value="" selected>— seleziona —</option>
-            <option value="1-9">1-9</option>
-            <option value="10-19">10-19</option>
-            <option value="20-29">20-29</option>
-            <option value="più di 30">Più di 30</option>
-          </select>
+          <label>Numero individui stimati *</label>
+
+          <input id="individuals_estimated" type="hidden" value="">
+          <div class="choice-grid" role="group" aria-label="Numero individui stimati">
+            <button class="choice-btn" type="button" data-value="1-9">1-9</button>
+            <button class="choice-btn" type="button" data-value="10-19">10-19</button>
+            <button class="choice-btn" type="button" data-value="20-29">20-29</button>
+            <button class="choice-btn" type="button" data-value="più di 30">&gt;30</button>
+          </div>
         </div>
 
         <div class="full">
-          <label for="photo_site">Foto generale del sito *</label>
-          <input id="photo_site" type="file" accept="image/*" capture="environment">
-          <div class="hint">La foto viene scalata al 50% e salvata come JPG compresso.</div>
-        </div>
+          <label>Fotografie obbligatorie *</label>
+          <div class="photo-grid">
+            <label class="photo-tile" for="photo_site" id="tile_photo_site">
+              <span class="photo-icon" aria-hidden="true">📷</span>
+              <span class="photo-title">Foto generale del sito</span>
+              <span class="photo-status" id="status_photo_site">Tocca per scattare</span>
+            </label>
 
-        <div class="full">
-          <label for="photo_group">Foto dell'insieme di piante *</label>
-          <input id="photo_group" type="file" accept="image/*" capture="environment">
-        </div>
+            <label class="photo-tile" for="photo_group" id="tile_photo_group">
+              <span class="photo-icon" aria-hidden="true">🌿</span>
+              <span class="photo-title">Foto insieme di piante</span>
+              <span class="photo-status" id="status_photo_group">Tocca per scattare</span>
+            </label>
 
-        <div class="full">
-          <label for="photo_plant">Foto della pianta *</label>
-          <input id="photo_plant" type="file" accept="image/*" capture="environment">
-        </div>
+            <label class="photo-tile" for="photo_plant" id="tile_photo_plant">
+              <span class="photo-icon" aria-hidden="true">🌸</span>
+              <span class="photo-title">Foto della pianta</span>
+              <span class="photo-status" id="status_photo_plant">Tocca per scattare</span>
+            </label>
 
-        <div class="full">
-          <label for="photo_leaf_under">Foto della pagina inferiore della foglia *</label>
-          <input id="photo_leaf_under" type="file" accept="image/*" capture="environment">
+            <label class="photo-tile" for="photo_leaf_under" id="tile_photo_leaf_under">
+              <span class="photo-icon" aria-hidden="true">🍃</span>
+              <span class="photo-title">Pagina inferiore foglia</span>
+              <span class="photo-status" id="status_photo_leaf_under">Tocca per scattare</span>
+            </label>
+          </div>
+
+          <input id="photo_site" class="hidden-file" type="file" accept="image/*" capture="environment">
+          <input id="photo_group" class="hidden-file" type="file" accept="image/*" capture="environment">
+          <input id="photo_plant" class="hidden-file" type="file" accept="image/*" capture="environment">
+          <input id="photo_leaf_under" class="hidden-file" type="file" accept="image/*" capture="environment">
+
         </div>
 
         <div class="full row">
@@ -269,6 +387,32 @@
           }, {enableHighAccuracy:true, timeout:20000, maximumAge:0});
         });
       }
+      document.querySelectorAll('.choice-btn').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          document.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('is-selected'));
+          btn.classList.add('is-selected');
+          $('individuals_estimated').value = btn.dataset.value || '';
+        });
+      });
+
+      PHOTO_FIELDS.forEach(([fieldId])=>{
+        const input = $(fieldId);
+        const tile = $('tile_' + fieldId);
+        const status = $('status_' + fieldId);
+        if(input && tile && status){
+          input.addEventListener('change', ()=>{
+            const file = input.files && input.files[0];
+            if(file){
+              tile.classList.add('has-file');
+              status.textContent = 'Foto selezionata ✓';
+            }else{
+              tile.classList.remove('has-file');
+              status.textContent = 'Tocca per scattare';
+            }
+          });
+        }
+      });
+
       $('btnAdd').addEventListener('click', handleSubmit);
       $('btnSync').addEventListener('click', ()=>syncPendingRecords(true));
       window.addEventListener('online', ()=>syncPendingRecords(false));
@@ -408,9 +552,16 @@
 
     function resetFormKeepCompiler(){
       $('individuals_estimated').value = '';
+      document.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('is-selected'));
       $('lat').value = '';
       $('lon').value = '';
-      for(const [fieldId] of PHOTO_FIELDS){ $(fieldId).value = ''; }
+      for(const [fieldId] of PHOTO_FIELDS){
+        $(fieldId).value = '';
+        const tile = $('tile_' + fieldId);
+        const status = $('status_' + fieldId);
+        if(tile) tile.classList.remove('has-file');
+        if(status) status.textContent = 'Tocca per scattare';
+      }
     }
 
     async function handleSubmit(){
