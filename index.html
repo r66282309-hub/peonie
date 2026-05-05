@@ -376,6 +376,200 @@
       .privacy-btn { width: 100%; }
     }
 
+
+    .notes-link {
+      margin-top: 10px;
+      border: 0;
+      background: linear-gradient(135deg, var(--accent), #f472b6);
+      color: #fff;
+      font: inherit;
+      font-size: 0.94rem;
+      font-weight: 850;
+      cursor: pointer;
+      border-radius: 999px;
+      padding: 11px 18px;
+      box-shadow: 0 12px 24px rgba(219, 39, 119, 0.18);
+    }
+
+    .notes-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(35, 19, 35, 0.42);
+      backdrop-filter: blur(8px);
+    }
+
+    .notes-overlay.is-visible {
+      display: flex;
+    }
+
+    .notes-modal {
+      width: min(100%, 720px);
+      max-height: min(90vh, 780px);
+      overflow: auto;
+      background: rgba(255, 255, 255, 0.98);
+      color: var(--text);
+      border: 1px solid rgba(219, 39, 119, 0.20);
+      border-radius: 30px;
+      box-shadow: 0 34px 95px rgba(80, 24, 57, 0.32);
+      padding: 28px;
+      position: relative;
+    }
+
+    .notes-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 11px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+      font-size: 0.78rem;
+      font-weight: 850;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .notes-modal h2 {
+      font-size: clamp(1.55rem, 4vw, 2.15rem);
+      margin-bottom: 10px;
+    }
+
+    .notes-intro {
+      margin-bottom: 18px;
+    }
+
+    .notes-form {
+      display: grid;
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .notes-field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .notes-field label {
+      color: var(--text);
+      font-weight: 800;
+      font-size: 0.93rem;
+    }
+
+    .notes-field input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 13px 14px;
+      font: inherit;
+      color: var(--text);
+      background: #fff;
+      outline: none;
+      transition: border-color .16s ease, box-shadow .16s ease;
+    }
+
+    .notes-field input:focus {
+      border-color: rgba(219, 39, 119, 0.55);
+      box-shadow: 0 0 0 4px rgba(219, 39, 119, 0.10);
+    }
+
+    .notes-help {
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.45;
+    }
+
+    .notes-consent {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 14px;
+      border-radius: 18px;
+      background: linear-gradient(145deg, #fff7fb, #ffffff);
+      border: 1px solid var(--line);
+      color: var(--text);
+      font-weight: 650;
+      line-height: 1.4;
+    }
+
+    .notes-consent input {
+      width: 20px;
+      height: 20px;
+      margin-top: 1px;
+      accent-color: var(--accent);
+      flex: 0 0 auto;
+    }
+
+    .notes-status {
+      display: none;
+      border-radius: 16px;
+      padding: 12px 14px;
+      font-weight: 750;
+      line-height: 1.45;
+    }
+
+    .notes-status.is-visible {
+      display: block;
+    }
+
+    .notes-status.success {
+      color: #3f6212;
+      background: #ecfccb;
+      border: 1px solid rgba(77, 124, 15, 0.18);
+    }
+
+    .notes-status.error {
+      color: #9d174d;
+      background: var(--accent-soft);
+      border: 1px solid rgba(219, 39, 119, 0.18);
+    }
+
+    .notes-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .notes-btn {
+      border: 0;
+      border-radius: 999px;
+      padding: 11px 18px;
+      font: inherit;
+      font-weight: 850;
+      cursor: pointer;
+    }
+
+    .notes-btn.primary {
+      background: linear-gradient(135deg, var(--accent), #f472b6);
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(219, 39, 119, 0.20);
+    }
+
+    .notes-btn.primary:disabled {
+      opacity: 0.52;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .notes-btn.secondary {
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+    }
+
+    @media (max-width: 700px) {
+      .notes-modal { padding: 20px; border-radius: 22px; }
+      .notes-buttons { justify-content: stretch; }
+      .notes-btn, .notes-link { width: 100%; }
+    }
+
+
   </style>
 </head>
 <body>
@@ -387,6 +581,8 @@
         Accesso rapido alla scheda di campo e alla mappa delle segnalazioni raccolte.
       </p>
       <button class="privacy-link" id="openPrivacy" type="button">Informativa sul trattamento dei dati</button>
+      <br />
+      <button class="notes-link" id="openNotes" type="button">Note per il rilevatore</button>
     </header>
 
     <section class="grid" aria-label="Strumenti disponibili">
@@ -420,6 +616,50 @@
 </section>
   </main>
 
+
+
+  <div class="notes-overlay" id="notesModal" aria-hidden="true">
+    <div class="notes-modal" role="dialog" aria-modal="true" aria-labelledby="notesTitle">
+      <div class="notes-kicker"><span class="dot"></span> Note per il rilevatore</div>
+      <h2 id="notesTitle">Iscrizione alla lista dei segnalatori</h2>
+      <p class="notes-intro">
+        Questo modulo permette a chi effettua segnalazioni di lasciare un contatto email, in modo discreto,
+        per eventuali chiarimenti, aggiornamenti o comunicazioni legate al monitoraggio. È possibile inoltre autorizzare
+        la menzione del proprio nome come contributore o segnalatore nei materiali del progetto.
+      </p>
+
+      <form class="notes-form" id="notesForm">
+        <div class="notes-field">
+          <label for="notesName">Nome e cognome</label>
+          <input id="notesName" name="nome_cognome" type="text" autocomplete="name" required maxlength="120" placeholder="Es. Mario Rossi" />
+          <div class="notes-help">Inserire lo stesso nome usato nella scheda di segnalazione.</div>
+        </div>
+
+        <div class="notes-field">
+          <label for="notesEmail">Email</label>
+          <input id="notesEmail" name="email" type="email" autocomplete="email" required maxlength="160" placeholder="Es. nome@email.it" />
+          <div class="notes-help">L’email sarà usata solo per eventuali comunicazioni relative al progetto e non sarà resa pubblica.</div>
+        </div>
+
+        <label class="notes-consent">
+          <input type="checkbox" id="notesMention" name="menzione_contributore" />
+          <span>Desidero essere eventualmente menzionato/a come contributore o segnalatore nei materiali del progetto, usando il nome indicato sopra.</span>
+        </label>
+
+        <label class="notes-consent">
+          <input type="checkbox" id="notesConsent" required />
+          <span>Acconsento al trattamento del mio nome e della mia email per finalità organizzative, scientifiche e gestionali legate al monitoraggio delle peonie.</span>
+        </label>
+
+        <div class="notes-status" id="notesStatus" role="status" aria-live="polite"></div>
+
+        <div class="notes-buttons">
+          <button class="notes-btn secondary" id="notesClose" type="button">Chiudi</button>
+          <button class="notes-btn primary" id="notesSubmit" type="submit">Invia iscrizione</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <div class="privacy-overlay" id="privacyModal" aria-hidden="true">
     <div class="privacy-modal" role="dialog" aria-modal="true" aria-labelledby="privacyTitle">
@@ -460,6 +700,136 @@
   </div>
 
   <script>
+
+    (function () {
+      const SUPABASE_URL = 'INSERISCI_SUPABASE_URL';
+      const SUPABASE_ANON_KEY = 'INSERISCI_SUPABASE_ANON_KEY';
+      const TABLE_NAME = 'note_rilevatori';
+
+      const modal = document.getElementById('notesModal');
+      const openBtn = document.getElementById('openNotes');
+      const closeBtn = document.getElementById('notesClose');
+      const form = document.getElementById('notesForm');
+      const submitBtn = document.getElementById('notesSubmit');
+      const statusBox = document.getElementById('notesStatus');
+
+      function openModal() {
+        if (!modal) return;
+        modal.classList.add('is-visible');
+        modal.setAttribute('aria-hidden', 'false');
+      }
+
+      function closeModal() {
+        if (!modal) return;
+        modal.classList.remove('is-visible');
+        modal.setAttribute('aria-hidden', 'true');
+      }
+
+      function setStatus(message, type) {
+        if (!statusBox) return;
+        statusBox.textContent = message;
+        statusBox.className = 'notes-status is-visible ' + type;
+      }
+
+      function clearStatus() {
+        if (!statusBox) return;
+        statusBox.textContent = '';
+        statusBox.className = 'notes-status';
+      }
+
+      if (openBtn) openBtn.addEventListener('click', openModal);
+      if (closeBtn) closeBtn.addEventListener('click', closeModal);
+
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && modal && modal.classList.contains('is-visible')) closeModal();
+      });
+
+      if (modal) {
+        modal.addEventListener('click', function (event) {
+          if (event.target === modal) closeModal();
+        });
+      }
+
+      if (form) {
+        form.addEventListener('submit', async function (event) {
+          event.preventDefault();
+          clearStatus();
+
+          const formData = new FormData(form);
+          const nomeCognome = String(formData.get('nome_cognome') || '').trim();
+          const email = String(formData.get('email') || '').trim().toLowerCase();
+          const menzioneContributore = document.getElementById('notesMention')?.checked === true;
+          const consenso = document.getElementById('notesConsent')?.checked === true;
+
+          const emailValida = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+          if (!nomeCognome || !email || !consenso) {
+            setStatus('Compila nome, email e consenso prima di inviare.', 'error');
+            return;
+          }
+
+          if (!emailValida) {
+            setStatus('Inserisci un indirizzo email valido.', 'error');
+            return;
+          }
+
+          if (SUPABASE_URL.includes('INSERISCI_') || SUPABASE_ANON_KEY.includes('INSERISCI_')) {
+            setStatus('Collegamento Supabase non ancora configurato: inserisci SUPABASE_URL e SUPABASE_ANON_KEY nel file.', 'error');
+            return;
+          }
+
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Invio in corso...';
+          }
+
+          try {
+            const response = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE_NAME}`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'Prefer': 'return=minimal'
+              },
+              body: JSON.stringify({
+                nome_cognome: nomeCognome,
+                email: email,
+                menzione_contributore: menzioneContributore,
+                consenso: consenso,
+                user_agent: navigator.userAgent
+              })
+            });
+
+            if (!response.ok) {
+              let errorPayload = null;
+              try {
+                errorPayload = await response.json();
+              } catch (_) {}
+
+              if (response.status === 409 || errorPayload?.code === '23505') {
+                setStatus('Questa email risulta già iscritta alla lista. Non è necessario inviare una nuova iscrizione.', 'error');
+                return;
+              }
+
+              throw new Error('Errore Supabase: ' + response.status);
+            }
+
+            form.reset();
+            setStatus('Iscrizione inviata correttamente. Grazie!', 'success');
+          } catch (error) {
+            console.error(error);
+            setStatus('Non è stato possibile inviare l’iscrizione. Controlla la connessione o la configurazione Supabase.', 'error');
+          } finally {
+            if (submitBtn) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Invia iscrizione';
+            }
+          }
+        });
+      }
+    })();
+
     (function () {
       const modal = document.getElementById('privacyModal');
       const openBtn = document.getElementById('openPrivacy');
