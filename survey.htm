@@ -460,7 +460,7 @@
     // =========================
     // Compressione immagine: risoluzione dimezzata, JPG qualità 0.60
     // =========================
-    async function resizeAndCompress(file, scale=0.5, quality=0.60){
+    async function resizeAndCompress(file, scale=0.6, quality=0.60){
       const img = new Image();
       const url = URL.createObjectURL(file);
       await new Promise((res, rej)=>{ img.onload=res; img.onerror=rej; img.src=url; });
@@ -574,7 +574,7 @@
       for(const [fieldId] of PHOTO_FIELDS){
         const file = $(fieldId).files[0] || null;
         if(!file){ throw new Error('Mancano una o più foto obbligatorie'); }
-        photos[fieldId] = await resizeAndCompress(file, 0.5, 0.60);
+        photos[fieldId] = await resizeAndCompress(file, 0.6, 0.60);
       }
 
       return {
