@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="it"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+  <title>Survey Peonie</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    // Stesso accesso Supabase del file originario
+    window.SUPABASE_URL = 'https://bvdabdniussqmjjxvrdb.supabase.co';
+    window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2ZGFiZG5pdXNzcW1qanh2cmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNjMwMTAsImV4cCI6MjA3NzkzOTAxMH0.pMKdERP0lygqVoYSsEI4eH60BYcXr5QwJNhxf1ZUddM';
+    window.DEFAULT_TABLE = 'points';
+    window.DEFAULT_BUCKET = 'soil_photos';
+  </script>
+
+  <style>
+    :root{
+      --bg:#ffffff; --ink:#0f172a; --muted:#475569; --line:#e2e8f0;
+      --brand:#166534; --brand2:#22c55e; --surface:#f8fafc;
+      --ok:#16a34a; --warn:#b45309; --err:#dc2626;
+    }
+    *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+    html,body{width:100%; min-height:100%; margin:0; padding:0; background:var(--bg); overflow-x:hidden;}
+    body{width:100%; color:var(--ink); font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; padding-bottom:40px; overflow-x:hidden;}
+    .wrap{width:100%; max-width:760px; margin:0 auto; padding:12px;}
+    h1{margin:0 0 4px; font-size:24px;}
+    p.lead{margin:0 0 20px; color:var(--muted); font-size:15px;}
+    .card{background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:18px; box-shadow:0 8px 30px rgba(0,0,20,.06);}
+    .grid{display:grid; grid-template-columns:1fr; gap:16px;}
+    @media (min-width:600px){.grid{grid-template-columns:1fr 1fr;} .full{grid-column:1/-1;}}
+    label{display:block; font-weight:700; margin-bottom:6px; font-size:15px;}
+    input[type="text"], input[type="number"], select, textarea{width:100%; padding:14px 12px; font-size:16px; border-radius:12px; border:1px solid var(--line); background:#fff;}
+    input:focus, select:focus, textarea:focus{border-color:var(--brand); box-shadow:0 0 0 3px rgba(22,101,52,.18); outline:none;}
+    input[type="file"]{padding:8px 0; font-size:15px; width:100%;}
+    .hint{font-size:12px; color:var(--muted); margin-top:4px;}
+    .mini{font-size:13px; color:var(--muted);}
+    .ok{color:var(--ok)} .err{color:var(--err)} .warn{color:var(--warn)}
+    .row{display:flex; gap:10px; flex-wrap:wrap;}
+    button{width:100%; appearance:none; border:0; border-radius:14px; padding:14px 16px; font-weight:800; font-size:17px; cursor:pointer; background:var(--brand); color:#fff; box-shadow:0 6px 16px rgba(22,101,52,.25);}
+    button.secondary{background:#334155; box-shadow:0 6px 16px rgba(51,65,85,.20);}
+    button:active{transform:scale(.98);} button:disabled{opacity:.6; cursor:not-allowed; box-shadow:none;}
+    .cacheBox{border:1px dashed var(--line); border-radius:14px; padding:12px; background:#fff;}
+    .toast{position:fixed; left:50%; bottom:16px; transform:translateX(-50%) translateY(8px); background:#0f172a; color:#fff; padding:10px 14px; font-size:14px; font-weight:700; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,20,.18); opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease; z-index:3000; max-width:92%; text-align:center;}
+    .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+    .gps-box{
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:14px;
+    }
+    .gps-button{
+      width:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      padding:16px 18px;
+      border-radius:16px;
+      background:linear-gradient(135deg, var(--brand), #db2777);
+      color:#fff;
+      font-size:18px;
+      font-weight:800;
+      box-shadow:0 8px 22px rgba(22,101,52,.24);
+      margin-bottom:10px;
+    }
+    .gps-button .sat{
+      font-size:24px;
+      line-height:1;
+    }
+    .coord-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-top:10px;
+    }
+    .coord-grid label{
+      font-size:12px;
+      color:var(--muted);
+      margin-bottom:4px;
+      font-weight:700;
+    }
+    .coord-grid input{
+      font-size:14px;
+      padding:10px;
+      background:#f8fafc;
+    }
+    @media (max-width:480px){
+      .coord-grid{grid-template-columns:1fr;}
+    }
+
+
+    .gps-readonly{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-top:10px;
+    }
+    .gps-readonly .coord-field label{
+      font-size:12px;
+      color:var(--muted);
+      margin-bottom:4px;
+      font-weight:700;
+    }
+    .gps-readonly input{
+      font-size:13px;
+      padding:10px;
+      background:#f1f5f9;
+      color:#475569;
+      border:1px solid var(--line);
+    }
+    .choice-grid{
+      display:grid;
+      grid-template-columns:repeat(4, minmax(0, 1fr));
+      gap:10px;
+    }
+    .choice-btn{
+      min-height:58px;
+      border-radius:16px;
+      background:#ffffff;
+      color:var(--brand);
+      border:2px solid var(--line);
+      box-shadow:none;
+      font-size:17px;
+      font-weight:900;
+      padding:12px 8px;
+    }
+    .choice-btn.is-selected{
+      background:linear-gradient(135deg, var(--brand), #db2777);
+      color:#fff;
+      border-color:transparent;
+      box-shadow:0 8px 22px rgba(22,101,52,.22);
+    }
+    .photo-grid{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:12px;
+    }
+    .photo-tile{
+      min-height:136px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      text-align:center;
+      background:#ffffff;
+      border:2px dashed var(--line);
+      border-radius:18px;
+      padding:14px 10px;
+      cursor:pointer;
+      transition:border-color .15s ease, background .15s ease, transform .15s ease;
+    }
+    .photo-tile:hover{
+      border-color:var(--brand2);
+      background:#f0fdf4;
+    }
+    .photo-tile:active{
+      transform:scale(.98);
+    }
+    .photo-tile.has-file{
+      border-style:solid;
+      border-color:var(--brand2);
+      background:#f0fdf4;
+    }
+    .photo-icon{
+      font-size:30px;
+      line-height:1;
+    }
+    .photo-title{
+      font-weight:900;
+      color:var(--ink);
+      font-size:15px;
+      line-height:1.2;
+    }
+    .photo-status{
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.25;
+    }
+    .hidden-file{
+      position:absolute;
+      width:1px;
+      height:1px;
+      opacity:0;
+      pointer-events:none;
+    }
+    @media (max-width:520px){
+      .choice-grid{grid-template-columns:repeat(2, minmax(0, 1fr));}
+      .photo-grid{grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px;}
+      .photo-tile{min-height:126px; padding:12px 8px;}
+      .gps-readonly{grid-template-columns:1fr;}
+    }
+
+
+    @media (max-width:600px){
+      body{
+        padding-bottom:24px;
+      }
+      .wrap{
+        max-width:none;
+        width:100vw;
+        padding:8px;
+        margin:0;
+      }
+      .card{
+        width:100%;
+        border-radius:14px;
+        padding:12px;
+      }
+      .grid{
+        width:100%;
+        gap:12px;
+      }
+      input[type="text"],
+      input[type="number"],
+      select,
+      textarea,
+      button{
+        max-width:100%;
+      }
+      .photo-grid,
+      .choice-grid,
+      .gps-readonly{
+        width:100%;
+      }
+      .toast{
+        max-width:calc(100vw - 16px);
+      }
+    }
+
+  </style>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#db2777">
+</head>
+<body>
+  <div class="wrap">
+    <h1>Scheda rilevamento peonie</h1>
+    <p class="lead">Raccolta dati e foto per segnalazioni di peonia selvatica.</p>
+
+    <div class="card">
+      <div class="grid">
+        <div class="full">
+          <label for="compiler">Compilatore / rilevatore *</label>
+          <input id="compiler" type="text" maxlength="80" placeholder="Nome e cognome o iniziali">
+          <div class="hint">Max 80 caratteri.</div>
+        </div>
+
+        <div class="full gps-box">
+          <label>Posizione *</label>
+          <button id="btnGeo" class="gps-button" type="button">
+            <span class="sat" aria-hidden="true">🛰️</span>
+            <span>Acquisisci la posizione</span>
+          </button>
+          <div class="mini">Premi per acquisire automaticamente la posizione dal telefono.</div>
+
+          <div class="gps-readonly">
+            <div class="coord-field">
+              <label for="lat">Latitudine acquisita</label>
+              <input id="lat" type="text" inputmode="decimal" placeholder="non acquisita" readonly>
+            </div>
+            <div class="coord-field">
+              <label for="lon">Longitudine acquisita</label>
+              <input id="lon" type="text" inputmode="decimal" placeholder="non acquisita" readonly>
+            </div>
+          </div>
+        </div>
+
+        <div class="full">
+          <label>Numero piante stimate *</label>
+
+          <input id="individuals_estimated" type="hidden" value="">
+          <div class="choice-grid" role="group" aria-label="Numero individui stimati">
+            <button class="choice-btn" type="button" data-value="1-9">1-9</button>
+            <button class="choice-btn" type="button" data-value="10-19">10-19</button>
+            <button class="choice-btn" type="button" data-value="20-29">20-29</button>
+            <button class="choice-btn" type="button" data-value="più di 30">&gt;30</button>
+          </div>
+        </div>
+
+        <div class="full">
+          <label>Foto *</label>
+          <div class="photo-grid">
+            <label class="photo-tile" for="photo_site" id="tile_photo_site">
+              <span class="photo-icon" aria-hidden="true">📷</span>
+              <span class="photo-title">Foto generale del sito</span>
+              <span class="photo-status" id="status_photo_site">Tocca per scattare</span>
+            </label>
+
+            <label class="photo-tile" for="photo_group" id="tile_photo_group">
+              <span class="photo-icon" aria-hidden="true">🌿</span>
+              <span class="photo-title">Foto insieme di piante</span>
+              <span class="photo-status" id="status_photo_group">Tocca per scattare</span>
+            </label>
+
+            <label class="photo-tile" for="photo_plant" id="tile_photo_plant">
+              <span class="photo-icon" aria-hidden="true">🌸</span>
+              <span class="photo-title">Foto della pianta più grande</span>
+              <span class="photo-status" id="status_photo_plant">Tocca per scattare</span>
+            </label>
+
+            <label class="photo-tile" for="photo_leaf_under" id="tile_photo_leaf_under">
+              <span class="photo-icon" aria-hidden="true">🍃</span>
+              <span class="photo-title">Pagina inferiore della foglia</span>
+              <span class="photo-status" id="status_photo_leaf_under">Tocca per scattare</span>
+            </label>
+          </div>
+
+          <input id="photo_site" class="hidden-file" type="file" accept="image/*" capture="environment">
+          <input id="photo_group" class="hidden-file" type="file" accept="image/*" capture="environment">
+          <input id="photo_plant" class="hidden-file" type="file" accept="image/*" capture="environment">
+          <input id="photo_leaf_under" class="hidden-file" type="file" accept="image/*" capture="environment">
+
+        </div>
+
+        <div class="full row">
+          <button id="btnAdd">Invia segnalazione</button>
+          <button id="btnSync" class="secondary" type="button">Sincronizza segnalazioni offline</button>
+        </div>
+
+        <div class="full cacheBox">
+          <div id="cacheStatus" class="mini">Cache locale: controllo…</div>
+          <div id="status" class="mini"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const $ = (id)=>document.getElementById(id);
+    const DB_NAME = 'peonie_survey_cache_v1';
+    const STORE = 'pending_records';
+    const PHOTO_FIELDS = [
+      ['photo_site', 'site'],
+      ['photo_group', 'group'],
+      ['photo_plant', 'plant'],
+      ['photo_leaf_under', 'leaf_under']
+    ];
+
+    function showToast(msg){
+      const t = $('toast'); if(!t) return;
+      t.textContent = msg || 'OK';
+      t.classList.add('show'); clearTimeout(showToast._t);
+      showToast._t = setTimeout(()=> t.classList.remove('show'), 4000);
+    }
+    function setStatus(msg, cls){ const el=$('status'); el.textContent = msg||''; el.className='mini ' + (cls||''); }
+    function setCacheStatus(msg, cls){ const el=$('cacheStatus'); el.textContent = msg||''; el.className='mini ' + (cls||''); }
+
+    // =========================
+    // IndexedDB: cache locale persistente, adatta anche ai file immagine
+    // =========================
+    function openDB(){
+      return new Promise((resolve, reject)=>{
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = ()=>{
+          const db = req.result;
+          if(!db.objectStoreNames.contains(STORE)){
+            db.createObjectStore(STORE, {keyPath:'local_id'});
+          }
+        };
+        req.onsuccess = ()=>resolve(req.result);
+        req.onerror = ()=>reject(req.error);
+      });
+    }
+    async function cacheRecord(record){
+      const db = await openDB();
+      return new Promise((resolve, reject)=>{
+        const tx = db.transaction(STORE, 'readwrite');
+        tx.objectStore(STORE).put(record);
+        tx.oncomplete = resolve;
+        tx.onerror = ()=>reject(tx.error);
+      });
+    }
+    async function deleteCachedRecord(local_id){
+      const db = await openDB();
+      return new Promise((resolve, reject)=>{
+        const tx = db.transaction(STORE, 'readwrite');
+        tx.objectStore(STORE).delete(local_id);
+        tx.oncomplete = resolve;
+        tx.onerror = ()=>reject(tx.error);
+      });
+    }
+    async function getCachedRecords(){
+      const db = await openDB();
+      return new Promise((resolve, reject)=>{
+        const tx = db.transaction(STORE, 'readonly');
+        const req = tx.objectStore(STORE).getAll();
+        req.onsuccess = ()=>resolve(req.result || []);
+        req.onerror = ()=>reject(req.error);
+      });
+    }
+    async function updateCacheCounter(){
+      try{
+        const rows = await getCachedRecords();
+        const n = rows.length;
+        setCacheStatus(n ? `Cache locale: ${n} segnalazione/i da sincronizzare.` : 'Cache locale: vuota.', n ? 'warn' : 'ok');
+      }catch(e){ setCacheStatus('Cache locale non disponibile: ' + (e.message||e), 'err'); }
+    }
+
+    // =========================
+    // Geolocalizzazione
+    // =========================
+    document.addEventListener('DOMContentLoaded', ()=>{
+      const link = $('btnGeo');
+      if(link){
+        link.addEventListener('click', (e)=>{
+          e.preventDefault();
+          if(!navigator.geolocation){ setStatus('Geolocalizzazione non supportata dal browser', 'err'); return; }
+          setStatus('Cerco posizione…');
+          navigator.geolocation.getCurrentPosition(pos=>{
+            const {latitude, longitude} = pos.coords;
+            $('lat').value = latitude.toFixed(6);
+            $('lon').value = longitude.toFixed(6);
+            setStatus('Posizione ottenuta ✓', 'ok');
+          }, err=>{
+            console.warn('Geo error', err);
+            setStatus('Geolocalizzazione negata o fallita', 'err');
+          }, {enableHighAccuracy:true, timeout:20000, maximumAge:0});
+        });
+      }
+      document.querySelectorAll('.choice-btn').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          document.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('is-selected'));
+          btn.classList.add('is-selected');
+          $('individuals_estimated').value = btn.dataset.value || '';
+        });
+      });
+
+      PHOTO_FIELDS.forEach(([fieldId])=>{
+        const input = $(fieldId);
+        const tile = $('tile_' + fieldId);
+        const status = $('status_' + fieldId);
+        if(input && tile && status){
+          input.addEventListener('change', ()=>{
+            const file = input.files && input.files[0];
+            if(file){
+              tile.classList.add('has-file');
+              status.textContent = 'Foto selezionata ✓';
+            }else{
+              tile.classList.remove('has-file');
+              status.textContent = 'Tocca per scattare';
+            }
+          });
+        }
+      });
+
+      $('btnAdd').addEventListener('click', handleSubmit);
+      $('btnSync').addEventListener('click', ()=>syncPendingRecords(true));
+      window.addEventListener('online', ()=>syncPendingRecords(false));
+      updateCacheCounter();
+      if(navigator.onLine) syncPendingRecords(false);
+    });
+
+    // =========================
+    // Compressione immagine: lato massimo 1600x1200 oppure 1200x1600, JPG qualità 0.60
+    // =========================
+    async function resizeAndCompress(file, maxLandscapeW=1600, maxLandscapeH=1200, quality=0.60){
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      await new Promise((res, rej)=>{ img.onload=res; img.onerror=rej; img.src=url; });
+
+      const srcW = img.naturalWidth;
+      const srcH = img.naturalHeight;
+      const isPortrait = srcH > srcW;
+      const maxW = isPortrait ? maxLandscapeH : maxLandscapeW;
+      const maxH = isPortrait ? maxLandscapeW : maxLandscapeH;
+      const scale = Math.min(maxW / srcW, maxH / srcH, 1);
+      const w = Math.max(1, Math.round(srcW * scale));
+      const h = Math.max(1, Math.round(srcH * scale));
+
+      const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
+      const blob = await new Promise(res=>canvas.toBlob(res, 'image/jpeg', quality));
+      URL.revokeObjectURL(url);
+      const base = (file.name || 'photo').replace(/\.[^.]+$/, '');
+      return new File([blob], `${base}.jpg`, {type:'image/jpeg'});
+    }
+
+    function getSupabaseClient(){
+      const url = window.SUPABASE_URL;
+      const key = window.SUPABASE_ANON_KEY;
+      if(!url || !key) throw new Error('Parametri Supabase mancanti');
+      if(!window.supabase) throw new Error('Libreria Supabase non caricata');
+      return supabase.createClient(url, key);
+    }
+
+    function safePart(s){
+      return String(s || 'peonia')
+        .trim()
+        .replace(/[^a-z0-9-_]+/gi,'_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0,42) || 'peonia';
+    }
+
+    function folderDate(value){
+      const d = value ? new Date(value) : new Date();
+      const pad = n => String(n).padStart(2, '0');
+      if(Number.isNaN(d.getTime())){
+        const now = new Date();
+        return `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+      }
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+    }
+
+    function recordFolderName(record){
+      return `${safePart(record.compiler)}_${folderDate(record.created_at)}`;
+    }
+
+    async function uploadPhotoToSupabase(file, record, kind){
+      const sb = getSupabaseClient();
+      const bucket = window.DEFAULT_BUCKET || 'soil_photos';
+      const folder = recordFolderName(record);
+      const fileNameByKind = {
+        site: 'site.jpg',
+        group: 'group.jpg',
+        plant: 'plant.jpg',
+        leaf_under: 'leaf_under.jpg'
+      };
+      const fileName = fileNameByKind[kind] || `${safePart(kind)}.jpg`;
+      const path = `peonie/${folder}/${fileName}`;
+      const { error } = await sb.storage.from(bucket).upload(path, file, {contentType:'image/jpeg', upsert:true});
+      if(error) throw error;
+      const { data } = sb.storage.from(bucket).getPublicUrl(path);
+      return data.publicUrl;
+    }
+
+    async function sendRecordToSupabase(record){
+      const photoUrls = {};
+      for(const [fieldId, kind] of PHOTO_FIELDS){
+        const f = record.photos[fieldId];
+        if(f){ photoUrls[fieldId + '_url'] = await uploadPhotoToSupabase(f, record, kind); }
+      }
+      const sb = getSupabaseClient();
+      const table = window.DEFAULT_TABLE || 'points';
+
+      // Colonne consigliate in Supabase:
+      // compiler, lat, lon, individuals_estimated,
+      // photo_site_url, photo_group_url, photo_plant_url, photo_leaf_under_url,
+      // created_at, synced_from_cache, local_id
+      const payload = {
+        // Vecchi campi mantenuti per compatibilità con la vecchia tabella/app
+        name: record.compiler.slice(0,80),
+        land_cover: record.individuals_estimated,
+        photo_url: photoUrls.photo_site_url || null,
+
+        // Nuovi campi per il survey peonie
+        compiler: record.compiler.slice(0,80),
+        lat: Number(record.lat),
+        lon: Number(record.lon),
+        individuals_estimated: record.individuals_estimated,
+        photo_site_url: photoUrls.photo_site_url || null,
+        photo_group_url: photoUrls.photo_group_url || null,
+        photo_plant_url: photoUrls.photo_plant_url || null,
+        photo_leaf_under_url: photoUrls.photo_leaf_under_url || null,
+        created_at: record.created_at,
+        synced_from_cache: !!record.synced_from_cache,
+        local_id: record.local_id
+      };
+
+      const { error } = await sb.from(table).insert([payload]);
+      if(error) throw error;
+      return true;
+    }
+
+    async function buildRecordFromForm(){
+      const compiler = $('compiler').value.trim();
+      const lat = Number(String($('lat').value).replace(',', '.'));
+      const lon = Number(String($('lon').value).replace(',', '.'));
+      const individuals = $('individuals_estimated').value;
+      if(!compiler){ throw new Error('Compilatore/rilevatore obbligatorio'); }
+      if(!(Number.isFinite(lat) && lat>=-90 && lat<=90)){ throw new Error('Latitudine non valida (-90..90)'); }
+      if(!(Number.isFinite(lon) && lon>=-180 && lon<=180)){ throw new Error('Longitudine non valida (-180..180)'); }
+      if(!individuals){ throw new Error('Numero individui stimati obbligatorio'); }
+
+      const photos = {};
+      for(const [fieldId] of PHOTO_FIELDS){
+        const file = $(fieldId).files[0] || null;
+        if(!file){ throw new Error('Mancano una o più foto obbligatorie'); }
+        photos[fieldId] = await resizeAndCompress(file, 1600, 1200, 0.60);
+      }
+
+      return {
+        local_id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + '_' + Math.random().toString(16).slice(2),
+        compiler, lat, lon,
+        individuals_estimated: individuals,
+        photos,
+        created_at: new Date().toISOString(),
+        synced_from_cache: false
+      };
+    }
+
+    function resetFormKeepCompiler(){
+      $('individuals_estimated').value = '';
+      document.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('is-selected'));
+      $('lat').value = '';
+      $('lon').value = '';
+      for(const [fieldId] of PHOTO_FIELDS){
+        $(fieldId).value = '';
+        const tile = $('tile_' + fieldId);
+        const status = $('status_' + fieldId);
+        if(tile) tile.classList.remove('has-file');
+        if(status) status.textContent = 'Tocca per scattare';
+      }
+    }
+
+    async function handleSubmit(){
+      $('btnAdd').disabled = true;
+      setStatus('Preparo le foto e salvo…');
+      try{
+        const record = await buildRecordFromForm();
+        try{
+          await sendRecordToSupabase(record);
+          showToast('Segnalazione inviata. Grazie mille!');
+          setStatus('Segnalazione caricata correttamente.', 'ok');
+          resetFormKeepCompiler();
+        }catch(netErr){
+          console.warn('Upload fallito, salvo in cache', netErr);
+          record.synced_from_cache = true;
+          record.last_error = String(netErr.message || netErr);
+          await cacheRecord(record);
+          showToast('Errore di rete: dati salvati in locale');
+          setStatus('Errore di rete, dati salvati in locale. Ricorda di sincronizzare appena agganci il segnale.', 'warn');
+          resetFormKeepCompiler();
+        }
+        await updateCacheCounter();
+      }catch(e){
+        setStatus(e.message || String(e), 'err');
+        showToast('Controlla i campi');
+      }finally{
+        $('btnAdd').disabled = false;
+      }
+    }
+
+    async function syncPendingRecords(manual=false){
+      if(syncPendingRecords._running) return;
+      syncPendingRecords._running = true;
+      $('btnSync').disabled = true;
+      try{
+        const rows = await getCachedRecords();
+        if(!rows.length){ if(manual) showToast('Cache locale vuota'); await updateCacheCounter(); return; }
+        if(!navigator.onLine){
+          setStatus('Nessuna rete disponibile. Cache mantenuta in locale.', 'warn');
+          if(manual) showToast('Nessuna rete disponibile');
+          return;
+        }
+        setStatus(`Sincronizzazione di ${rows.length} segnalazione/i…`);
+        let ok = 0;
+        for(const rec of rows){
+          try{
+            rec.synced_from_cache = true;
+            await sendRecordToSupabase(rec);
+            await deleteCachedRecord(rec.local_id);
+            ok++;
+            await updateCacheCounter();
+          }catch(e){
+            console.warn('Sync fallita per record', rec.local_id, e);
+            setStatus(`Sincronizzazione parziale: ${ok}/${rows.length}. Ultimo errore: ${e.message || e}`, 'warn');
+            return;
+          }
+        }
+        setStatus(`Sincronizzazione completata. Cache pulita: ${ok} segnalazione/i inviate.`, 'ok');
+        showToast('Dati locali inviati. Grazie mille!');
+      }catch(e){
+        setStatus('Errore cache/sincronizzazione: ' + (e.message||e), 'err');
+      }finally{
+        syncPendingRecords._running = false;
+        $('btnSync').disabled = false;
+        await updateCacheCounter();
+      }
+    }
+  </script>
+
+  <script>
+    if ("serviceWorker" in navigator && location.protocol !== "file:") {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("service-worker.js")
+          .then(() => console.log("Service worker attivo"))
+          .catch(err => console.warn("Service worker non registrato:", err));
+      });
+    }
+  </script>
+
+</body></html>
