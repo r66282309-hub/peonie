@@ -1,8 +1,8 @@
-<!doctype html>
-<html lang="it">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+<!DOCTYPE html>
+<html lang="it"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Rilevamento peonia selvatica</title>
 
   <style>
@@ -378,8 +378,12 @@
 
 
     .notes-link {
-      margin-top: 10px;
+      margin-top: 12px;
       border: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
       background: linear-gradient(135deg, var(--accent), #f472b6);
       color: #fff;
       font: inherit;
@@ -389,6 +393,36 @@
       border-radius: 999px;
       padding: 11px 18px;
       box-shadow: 0 12px 24px rgba(219, 39, 119, 0.18);
+      transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+      animation: notesPulse 2.9s ease-in-out infinite;
+    }
+
+    .notes-link:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 16px 30px rgba(219, 39, 119, 0.28);
+      filter: brightness(1.03);
+      animation-play-state: paused;
+    }
+
+    .notes-link:active {
+      transform: translateY(0) scale(0.99);
+    }
+
+    @keyframes notesPulse {
+      0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 12px 24px rgba(219, 39, 119, 0.18);
+      }
+      50% {
+        transform: scale(1.025);
+        box-shadow: 0 16px 34px rgba(219, 39, 119, 0.27);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .notes-link {
+        animation: none;
+      }
     }
 
     .notes-overlay {
@@ -581,14 +615,12 @@
         Accesso rapido alla scheda di campo e alla mappa delle segnalazioni raccolte.
       </p>
       <button class="privacy-link" id="openPrivacy" type="button">Informativa sul trattamento dei dati</button>
-      <br />
-      <button class="note-link note-cta" id="openNoteModal" type="button">
-  ✉️ Note per il rilevatore
-</button>
+      <br>
+      <button class="notes-link" id="openNotes" type="button">✉️ Note per il rilevatore</button>
     </header>
 
     <section class="grid" aria-label="Strumenti disponibili">
-      <a class="card" href="survey.htm">
+      <a class="card" href="https://r66282309-hub.github.io/peonie/survey.htm">
         <div>
           <div class="icon" aria-hidden="true">🌸</div>
           <h2>Scheda rilevamento</h2>
@@ -602,7 +634,7 @@
         </div>
       </a>
 
-       <a class="card" href="mappa.html">
+       <a class="card" href="https://r66282309-hub.github.io/peonie/mappa.html">
     <div>
       <div class="icon" aria-hidden="true">🗺️</div>
       <h2>Mappa</h2>
@@ -633,24 +665,28 @@
       <form class="notes-form" id="notesForm">
         <div class="notes-field">
           <label for="notesName">Nome e cognome</label>
-          <input id="notesName" name="nome_cognome" type="text" autocomplete="name" required maxlength="120" placeholder="Es. Mario Rossi" />
+          <input id="notesName" name="nome_cognome" type="text" autocomplete="name" required="" maxlength="120" placeholder="Es. Mario Rossi">
           <div class="notes-help">Inserire lo stesso nome usato nella scheda di segnalazione.</div>
         </div>
 
         <div class="notes-field">
           <label for="notesEmail">Email</label>
-          <input id="notesEmail" name="email" type="email" autocomplete="email" required maxlength="160" placeholder="Es. nome@email.it" />
+          <input id="notesEmail" name="email" type="email" autocomplete="email" required="" maxlength="160" placeholder="Es. nome@email.it">
           <div class="notes-help">L’email sarà usata solo per eventuali comunicazioni relative al progetto e non sarà resa pubblica.</div>
         </div>
 
         <label class="notes-consent">
-          <input type="checkbox" id="notesMention" name="menzione_contributore" />
-          <span>Desidero essere eventualmente menzionato/a come contributore o segnalatore nei materiali del progetto, usando il nome indicato sopra.</span>
+          <input type="checkbox" id="notesMention" name="menzione_contributore" >
+          <span>Desidero essere eventualmente menzionato/a come 
+contributore o segnalatore nei materiali del progetto, usando il nome 
+indicato sopra.</span>
         </label>
 
         <label class="notes-consent">
-          <input type="checkbox" id="notesConsent" required />
-          <span>Acconsento al trattamento del mio nome e della mia email per finalità organizzative, scientifiche e gestionali legate al monitoraggio delle peonie.</span>
+          <input type="checkbox" id="notesConsent" required="">
+          <span>Acconsento al trattamento del mio nome e della mia email
+ per finalità organizzative, scientifiche e gestionali legate al 
+monitoraggio delle peonie.</span>
         </label>
 
         <div class="notes-status" id="notesStatus" role="status" aria-live="polite"></div>
@@ -668,20 +704,26 @@
       <div class="privacy-kicker"><span class="dot"></span> Informativa dati</div>
       <h2 id="privacyTitle">Trattamento dei dati personali</h2>
       <p>
-        I dati raccolti tramite questa applicazione, inclusi posizione geografica, immagini e informazioni inserite nel modulo,
-        sono trattati esclusivamente per finalità scientifiche, di monitoraggio ambientale, documentazione e gestione del progetto
+        I dati raccolti tramite questa applicazione, inclusi posizione 
+geografica, immagini e informazioni inserite nel modulo,
+        sono trattati esclusivamente per finalità scientifiche, di 
+monitoraggio ambientale, documentazione e gestione del progetto
         relativo alle segnalazioni di peonie.
       </p>
 
       <div class="privacy-box">
         <p>
-          Le informazioni potranno essere archiviate su piattaforme digitali e utilizzate in forma tecnica, statistica o aggregata
-          per analisi, report, elaborazioni cartografiche e attività di ricerca. I dati personali eventualmente forniti dal segnalatore
+          Le informazioni potranno essere archiviate su piattaforme 
+digitali e utilizzate in forma tecnica, statistica o aggregata
+          per analisi, report, elaborazioni cartografiche e attività di 
+ricerca. I dati personali eventualmente forniti dal segnalatore
           non saranno diffusi pubblicamente senza consenso esplicito.
         </p>
         <ul>
           <li>La posizione geografica della segnalazione può essere registrata e associata al punto rilevato.</li>
-          <li>Le fotografie inviate devono riguardare il sito, le piante o elementi utili al riconoscimento, evitando persone riconoscibili quando non necessario.</li>
+          <li>Le fotografie inviate devono riguardare il sito, le piante
+ o elementi utili al riconoscimento, evitando persone riconoscibili 
+quando non necessario.</li>
           <li>L’utente è responsabile dei contenuti caricati e dichiara di non inviare dati personali di terzi senza autorizzazione.</li>
           <li>Per eventuali richieste di informazioni o segnalazioni, è possibile scrivere a 1234@5678.90.</li>
         </ul>
@@ -689,13 +731,13 @@
 
       <div class="privacy-actions">
         <label class="privacy-check">
-          <input type="checkbox" id="privacyAccept" />
+          <input type="checkbox" id="privacyAccept">
           <span>Dichiaro di aver letto l’informativa e accetto il trattamento dei dati per le finalità sopra indicate.</span>
         </label>
 
         <div class="privacy-buttons">
           <button class="privacy-btn secondary" id="privacyClose" type="button">Chiudi</button>
-          <button class="privacy-btn primary" id="privacyEnter" type="button" disabled>Accetta ed entra</button>
+          <button class="privacy-btn primary" id="privacyEnter" type="button" disabled="disabled">Accetta ed entra</button>
         </div>
       </div>
     </div>
@@ -877,5 +919,6 @@
     })();
   </script>
 
-</body>
-</html>
+
+
+</body></html>
