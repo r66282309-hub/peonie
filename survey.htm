@@ -319,7 +319,7 @@
 
         <div class="full row">
           <button id="btnAdd">Invia segnalazione</button>
-          <button id="btnSync" class="secondary" type="button">Sincronizza cache locale</button>
+          <button id="btnSync" class="secondary" type="button">Sincronizza segnalazioni offline</button>
         </div>
 
         <div class="full cacheBox">
@@ -657,7 +657,7 @@
           }
         }
         setStatus(`Sincronizzazione completata. Cache pulita: ${ok} segnalazione/i inviate.`, 'ok');
-        showToast('Cache sincronizzata ✓');
+        showToast('Dati locali inviati. Grazie mille!');
       }catch(e){
         setStatus('Errore cache/sincronizzazione: ' + (e.message||e), 'err');
       }finally{
