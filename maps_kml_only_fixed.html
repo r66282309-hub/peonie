@@ -1,0 +1,1337 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mappa segnalazioni peonie</title>
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --bg: #fff7fb;
+      --surface: #ffffff;
+      --surface-soft: #fdf2f8;
+      --text: #231323;
+      --muted: #6b5c68;
+      --line: #f1d9e6;
+      --accent: #db2777;
+      --accent-dark: #9d174d;
+      --accent-soft: #fce7f3;
+      --shadow: 0 18px 45px rgba(157, 23, 77, 0.16);
+      --radius: 22px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(244, 114, 182, 0.24), transparent 22rem),
+        radial-gradient(circle at 88% 18%, rgba(190, 242, 100, 0.18), transparent 20rem),
+        linear-gradient(180deg, #fffafd 0%, var(--bg) 58%, #ffffff 100%);
+      color: var(--text);
+    }
+
+    .page {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 14px;
+      padding: 16px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+      z-index: 10;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(252, 231, 243, 0.88);
+      color: var(--accent-dark);
+      border: 1px solid rgba(219, 39, 119, 0.16);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), #f472b6);
+    }
+
+    h1 {
+      font-size: clamp(1.35rem, 4vw, 2rem);
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.92rem;
+      margin-top: 4px;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    button, .link-button {
+      appearance: none;
+      border: 0;
+      text-decoration: none;
+      cursor: pointer;
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-weight: 800;
+      font-size: 0.9rem;
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+      border: 1px solid rgba(219, 39, 119, 0.18);
+    }
+
+    button:hover, .link-button:hover {
+      background: #fbcfe8;
+    }
+
+    .map-shell {
+      position: relative;
+      min-height: 520px;
+      overflow: hidden;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      background: var(--surface);
+    }
+
+    #map {
+      width: 100%;
+      height: calc(100vh - 145px);
+      min-height: 520px;
+      z-index: 1;
+      background: #e5e7eb;
+    }
+
+    .panel {
+      position: absolute;
+      left: 16px;
+      bottom: 16px;
+      width: min(360px, calc(100% - 32px));
+      z-index: 500;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: 0 14px 35px rgba(35, 19, 35, 0.16);
+      backdrop-filter: blur(12px);
+    }
+
+    .panel h2 {
+      font-size: 1rem;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .stat {
+      background: var(--surface-soft);
+      border: 1px solid rgba(219, 39, 119, 0.12);
+      border-radius: 14px;
+      padding: 8px 10px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 1.15rem;
+      color: var(--accent-dark);
+    }
+
+    .stat span {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .legend {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid rgba(35, 19, 35, 0.18);
+      flex: 0 0 auto;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .error {
+      color: #b91c1c;
+      font-weight: 700;
+    }
+
+    .leaflet-popup-content {
+      margin: 12px 14px;
+      min-width: 220px;
+    }
+
+    .popup-title {
+      font-weight: 900;
+      color: var(--accent-dark);
+      margin-bottom: 6px;
+      font-size: 1rem;
+    }
+
+    .popup-row {
+      margin: 3px 0;
+      color: #3f3340;
+      font-size: 0.9rem;
+    }
+
+    .popup-row strong {
+      color: #231323;
+    }
+
+    .popup-photos {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .popup-photos a {
+      display: block;
+      text-decoration: none;
+      color: var(--accent-dark);
+      background: var(--accent-soft);
+      border-radius: 10px;
+      padding: 6px 7px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-align: center;
+    }
+
+
+    .photo-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 4000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 22px;
+      background: rgba(35, 19, 35, 0.72);
+      backdrop-filter: blur(8px);
+    }
+
+    .photo-modal.is-visible {
+      display: flex;
+    }
+
+    .photo-modal-content {
+      position: relative;
+      width: min(980px, 96vw);
+      max-height: 92vh;
+      background: #ffffff;
+      border-radius: 22px;
+      overflow: hidden;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(241, 217, 230, 0.9);
+    }
+
+    .photo-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      background: #fdf2f8;
+      border-bottom: 1px solid #f1d9e6;
+    }
+
+    .photo-modal-title {
+      color: #9d174d;
+      font-weight: 900;
+      font-size: 0.95rem;
+    }
+
+    .photo-modal-close {
+      appearance: none;
+      border: 0;
+      cursor: pointer;
+      width: 36px;
+      height: 36px;
+      border-radius: 999px;
+      background: #fce7f3;
+      color: #9d174d;
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .photo-modal-close:hover {
+      background: #fbcfe8;
+    }
+
+    .photo-modal img {
+      display: block;
+      width: 100%;
+      max-height: calc(92vh - 62px);
+      object-fit: contain;
+      background: #111827;
+    }
+
+
+
+    .auth-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 3500;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(35, 19, 35, 0.46);
+      backdrop-filter: blur(9px);
+    }
+
+    .auth-overlay.is-visible {
+      display: flex;
+    }
+
+    .auth-modal {
+      width: min(100%, 440px);
+      background: rgba(255, 255, 255, 0.98);
+      border: 1px solid rgba(219, 39, 119, 0.20);
+      border-radius: 28px;
+      box-shadow: 0 30px 90px rgba(80, 24, 57, 0.30);
+      padding: 26px;
+    }
+
+    .auth-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 11px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+      font-size: 0.78rem;
+      font-weight: 850;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .auth-modal h2 {
+      font-size: 1.55rem;
+      margin-bottom: 8px;
+      letter-spacing: -0.03em;
+    }
+
+    .auth-modal p {
+      color: var(--muted);
+      font-size: 0.94rem;
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+
+    .auth-form {
+      display: grid;
+      gap: 12px;
+    }
+
+    .auth-field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .auth-field label {
+      color: var(--text);
+      font-size: 0.9rem;
+      font-weight: 800;
+    }
+
+    .auth-field input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      padding: 12px 13px;
+      font: inherit;
+      color: var(--text);
+      background: #fff;
+      outline: none;
+    }
+
+    .auth-field input:focus {
+      border-color: rgba(219, 39, 119, 0.55);
+      box-shadow: 0 0 0 4px rgba(219, 39, 119, 0.10);
+    }
+
+    .auth-submit {
+      width: 100%;
+      margin-top: 4px;
+      background: linear-gradient(135deg, var(--accent), #f472b6);
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(219, 39, 119, 0.20);
+    }
+
+    .auth-submit:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .auth-status {
+      min-height: 20px;
+      font-size: 0.86rem;
+      font-weight: 750;
+      color: var(--muted);
+    }
+
+    .auth-status.error {
+      color: #b91c1c;
+    }
+
+    .auth-status.success {
+      color: #166534;
+    }
+
+    .auth-user {
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 750;
+      max-width: 210px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .is-hidden {
+      display: none !important;
+    }
+
+
+
+    .table-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 3600;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 22px;
+      background: rgba(35, 19, 35, 0.58);
+      backdrop-filter: blur(8px);
+    }
+
+    .table-modal.is-visible {
+      display: flex;
+    }
+
+    .table-modal-content {
+      width: min(1180px, 96vw);
+      max-height: 90vh;
+      background: rgba(255, 255, 255, 0.98);
+      border: 1px solid rgba(219, 39, 119, 0.20);
+      border-radius: 24px;
+      box-shadow: 0 30px 90px rgba(80, 24, 57, 0.32);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+    }
+
+    .table-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      background: #fdf2f8;
+      border-bottom: 1px solid #f1d9e6;
+    }
+
+    .table-modal-title {
+      color: var(--accent-dark);
+      font-weight: 900;
+      font-size: 1rem;
+    }
+
+    .table-modal-close {
+      appearance: none;
+      border: 0;
+      cursor: pointer;
+      width: 36px;
+      height: 36px;
+      border-radius: 999px;
+      background: #fce7f3;
+      color: #9d174d;
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .table-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 12px 16px;
+      border-bottom: 1px solid #f1d9e6;
+    }
+
+    .table-toolbar input {
+      flex: 1 1 260px;
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 10px 13px;
+      font: inherit;
+      outline: none;
+    }
+
+    .table-toolbar input:focus {
+      border-color: rgba(219, 39, 119, 0.55);
+      box-shadow: 0 0 0 4px rgba(219, 39, 119, 0.10);
+    }
+
+    .table-count {
+      color: var(--muted);
+      font-size: 0.86rem;
+      font-weight: 800;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      max-height: calc(90vh - 125px);
+    }
+
+    .records-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+    }
+
+    .records-table th,
+    .records-table td {
+      border-bottom: 1px solid #f1d9e6;
+      padding: 9px 10px;
+      text-align: left;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+
+    .records-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #fff7fb;
+      color: var(--accent-dark);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .records-table tr:hover td {
+      background: #fff7fb;
+    }
+
+    .records-table .cell-muted {
+      color: var(--muted);
+    }
+
+    .mini-link {
+      color: var(--accent-dark);
+      font-weight: 850;
+      text-decoration: none;
+      background: var(--accent-soft);
+      border-radius: 999px;
+      padding: 4px 8px;
+      display: inline-block;
+    }
+
+    @media (max-width: 760px) {
+      .page {
+        padding: 10px;
+        gap: 10px;
+      }
+
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+        border-radius: 18px;
+        padding: 14px;
+      }
+
+      .actions {
+        width: 100%;
+        justify-content: stretch;
+      }
+
+      button, .link-button {
+        flex: 1;
+        text-align: center;
+      }
+
+      .map-shell {
+        border-radius: 18px;
+      }
+
+      #map {
+        height: calc(100vh - 190px);
+        min-height: 560px;
+      }
+
+      .panel {
+        left: 10px;
+        bottom: 10px;
+        width: calc(100% - 20px);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <header>
+      <div class="title-block">
+        <div class="badge"><span class="dot"></span> Peonia survey</div>
+        <h1>Mappa segnalazioni peonie</h1>
+      </div>
+
+      <div class="actions">
+        <span class="auth-user is-hidden" id="authUser"></span>
+        <a class="link-button" href="index.html">Home</a>
+        <button type="button" id="btnReload" disabled>Aggiorna dati</button>
+        <button type="button" id="btnTable" disabled>Tabella</button>
+        <button type="button" id="btnGeojson" disabled>Esporta GeoJSON</button>
+        <button type="button" id="btnKml" disabled>Esporta KML</button>
+        <button type="button" id="btnLogout" class="is-hidden">Esci</button>
+      </div>
+    </header>
+
+    <section class="map-shell" aria-label="Mappa delle segnalazioni">
+      <div id="map"></div>
+
+      <aside class="panel" aria-label="Indice delle segnalazioni">
+        <h2>Indice segnalazioni</h2>
+
+        <div class="stats">
+          <div class="stat">
+            <strong id="totalPoints">0</strong>
+            <span>punti totali</span>
+          </div>
+          <div class="stat">
+            <strong id="lastUpdate">—</strong>
+            <span>ultimo aggiornamento</span>
+          </div>
+        </div>
+
+        <div class="legend">
+          <div class="legend-row"><span class="swatch" style="background:#f9a8d4"></span> 1-9 individui</div>
+          <div class="legend-row"><span class="swatch" style="background:#f472b6"></span> 10-19 individui</div>
+          <div class="legend-row"><span class="swatch" style="background:#db2777"></span> 20-29 individui</div>
+          <div class="legend-row"><span class="swatch" style="background:#9d174d"></span> Più di 30 individui</div>
+          <div class="legend-row"><span class="swatch" style="background:#64748b"></span> dato non indicato</div>
+        </div>
+
+        <div class="status" id="status">Caricamento dati…</div>
+      </aside>
+    </section>
+  </div>
+
+
+  <div class="auth-overlay" id="authOverlay" aria-hidden="true">
+    <div class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+      <div class="auth-kicker"><span class="dot"></span> Area riservata</div>
+      <h2 id="authTitle">Accesso alla mappa</h2>
+      <p>
+        Inserisci le credenziali abilitate in Supabase per visualizzare i punti e le fotografie delle segnalazioni.
+      </p>
+
+      <form class="auth-form" id="authForm">
+        <div class="auth-field">
+          <label for="authEmail">Email utente</label>
+          <input id="authEmail" type="email" autocomplete="username" required placeholder="nome@email.it">
+        </div>
+
+        <div class="auth-field">
+          <label for="authPassword">Password</label>
+          <input id="authPassword" type="password" autocomplete="current-password" required placeholder="Password">
+        </div>
+
+        <div class="auth-status" id="authStatus" role="status" aria-live="polite"></div>
+        <button class="auth-submit" id="authSubmit" type="submit">Accedi alla mappa</button>
+      </form>
+    </div>
+  </div>
+
+
+
+  <div class="table-modal" id="tableModal" aria-hidden="true">
+    <div class="table-modal-content" role="dialog" aria-modal="true" aria-labelledby="tableModalTitle">
+      <div class="table-modal-header">
+        <div class="table-modal-title" id="tableModalTitle">Tabella segnalazioni</div>
+        <button class="table-modal-close" id="tableModalClose" type="button" aria-label="Chiudi tabella">×</button>
+      </div>
+      <div class="table-toolbar">
+        <input id="tableSearch" type="search" placeholder="Filtra per rilevatore, data, categoria…">
+        <div class="table-count" id="tableCount">0 record</div>
+      </div>
+      <div class="table-wrap">
+        <table class="records-table" id="recordsTable">
+          <thead>
+            <tr>
+              <th>Rilevatore</th>
+              <th>Individui</th>
+              <th>Data</th>
+              <th>Lat</th>
+              <th>Lon</th>
+              <th>Foto</th>
+              <th>Mappa</th>
+            </tr>
+          </thead>
+          <tbody id="recordsTableBody">
+            <tr><td colspan="7" class="cell-muted">Nessun dato caricato.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="photo-modal" id="photoModal" aria-hidden="true">
+    <div class="photo-modal-content" role="dialog" aria-modal="true" aria-label="Anteprima foto">
+      <div class="photo-modal-header">
+        <div class="photo-modal-title" id="photoModalTitle">Foto segnalazione</div>
+        <button class="photo-modal-close" id="photoModalClose" type="button" aria-label="Chiudi foto">×</button>
+      </div>
+      <img id="photoModalImg" src="" alt="Foto segnalazione">
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://bvdabdniussqmjjxvrdb.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2ZGFiZG5pdXNzcW1qanh2cmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNjMwMTAsImV4cCI6MjA3NzkzOTAxMH0.pMKdERP0lygqVoYSsEI4eH60BYcXr5QwJNhxf1ZUddM";
+    const TABLE = "points";
+
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let currentSession = null;
+    let allPoints = [];
+    const markersById = new Map();
+
+    const authOverlay = document.getElementById("authOverlay");
+    const authForm = document.getElementById("authForm");
+    const authEmail = document.getElementById("authEmail");
+    const authPassword = document.getElementById("authPassword");
+    const authSubmit = document.getElementById("authSubmit");
+    const authStatus = document.getElementById("authStatus");
+    const authUser = document.getElementById("authUser");
+    const btnLogout = document.getElementById("btnLogout");
+    const btnReload = document.getElementById("btnReload");
+    const btnTable = document.getElementById("btnTable");
+    const btnGeojson = document.getElementById("btnGeojson");
+    const btnKml = document.getElementById("btnKml");
+    const tableModal = document.getElementById("tableModal");
+    const tableModalClose = document.getElementById("tableModalClose");
+    const tableSearch = document.getElementById("tableSearch");
+    const tableCount = document.getElementById("tableCount");
+    const recordsTableBody = document.getElementById("recordsTableBody");
+
+    function setAuthStatus(message, type = "") {
+      authStatus.textContent = message || "";
+      authStatus.className = "auth-status" + (type ? " " + type : "");
+    }
+
+    function showLogin() {
+      authOverlay.classList.add("is-visible");
+      authOverlay.setAttribute("aria-hidden", "false");
+      btnReload.disabled = true;
+      btnTable.disabled = true;
+      btnGeojson.disabled = true;
+      btnKml.disabled = true;
+      setStatus("Accesso riservato: effettua il login per caricare i dati.", true);
+      setTimeout(() => authEmail.focus(), 80);
+    }
+
+    function hideLogin() {
+      authOverlay.classList.remove("is-visible");
+      authOverlay.setAttribute("aria-hidden", "true");
+    }
+
+    function updateAuthUI(session) {
+      currentSession = session;
+      const logged = !!session;
+      btnReload.disabled = !logged;
+      btnTable.disabled = !logged;
+      btnGeojson.disabled = !logged;
+      btnKml.disabled = !logged;
+      btnLogout.classList.toggle("is-hidden", !logged);
+      authUser.classList.toggle("is-hidden", !logged);
+      authUser.textContent = logged ? (session.user?.email || "utente autenticato") : "";
+    }
+
+    async function checkSession() {
+      const { data, error } = await sb.auth.getSession();
+      if (error) {
+        console.error(error);
+        updateAuthUI(null);
+        showLogin();
+        return false;
+      }
+
+      updateAuthUI(data.session || null);
+      if (!data.session) {
+        showLogin();
+        return false;
+      }
+
+      hideLogin();
+      return true;
+    }
+
+    authForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      setAuthStatus("Verifica credenziali…");
+      authSubmit.disabled = true;
+
+      try {
+        const { data, error } = await sb.auth.signInWithPassword({
+          email: authEmail.value.trim(),
+          password: authPassword.value
+        });
+
+        if (error) throw error;
+
+        updateAuthUI(data.session || null);
+        setAuthStatus("Accesso riuscito.", "success");
+        hideLogin();
+        await loadPoints();
+      } catch (error) {
+        console.error(error);
+        updateAuthUI(null);
+        setAuthStatus("Accesso non riuscito. Controlla email e password.", "error");
+      } finally {
+        authSubmit.disabled = false;
+      }
+    });
+
+    btnLogout.addEventListener("click", async () => {
+      await sb.auth.signOut();
+      currentSession = null;
+      allPoints = [];
+      markersById.clear();
+      layer.clearLayers();
+      renderTable();
+      document.getElementById("totalPoints").textContent = "0";
+      document.getElementById("lastUpdate").textContent = "—";
+      updateAuthUI(null);
+      showLogin();
+    });
+
+    sb.auth.onAuthStateChange((_event, session) => {
+      updateAuthUI(session || null);
+    });
+
+    const map = L.map("map", {
+      zoomControl: true,
+      preferCanvas: true
+    }).setView([40.15, 9.05], 7);
+
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}", {
+      maxZoom: 19,
+      attribution: "Tiles &copy; Esri &mdash; Sources: Esri, HERE, Garmin, FAO, NOAA, USGS, &copy; OpenStreetMap contributors, and the GIS User Community"
+    }).addTo(map);
+
+    const layer = L.featureGroup().addTo(map);
+
+    const photoModal = document.getElementById("photoModal");
+    const photoModalImg = document.getElementById("photoModalImg");
+    const photoModalTitle = document.getElementById("photoModalTitle");
+    const photoModalClose = document.getElementById("photoModalClose");
+
+    function openPhotoModal(url, title) {
+      photoModalImg.src = url;
+      photoModalTitle.textContent = title ? `Foto: ${title}` : "Foto segnalazione";
+      photoModal.classList.add("is-visible");
+      photoModal.setAttribute("aria-hidden", "false");
+    }
+
+    function closePhotoModal() {
+      photoModal.classList.remove("is-visible");
+      photoModal.setAttribute("aria-hidden", "true");
+      photoModalImg.src = "";
+    }
+
+    photoModalClose.addEventListener("click", closePhotoModal);
+
+    photoModal.addEventListener("click", (event) => {
+      if (event.target === photoModal) {
+        closePhotoModal();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closePhotoModal();
+        closeTableModal();
+      }
+    });
+
+    document.addEventListener("click", (event) => {
+      const link = event.target.closest(".photo-preview-link");
+      if (!link) return;
+      event.preventDefault();
+      openPhotoModal(link.dataset.photoUrl, link.dataset.photoTitle);
+    });
+
+
+    function setStatus(message, isError = false) {
+      const el = document.getElementById("status");
+      el.textContent = message || "";
+      el.className = "status" + (isError ? " error" : "");
+    }
+
+    function getColor(value) {
+      const v = String(value || "").trim().toLowerCase();
+      if (v === "1-9") return "#f9a8d4";
+      if (v === "10-19") return "#f472b6";
+      if (v === "20-29") return "#db2777";
+      if (v === "più di 30" || v === "piu di 30" || v === ">30" || v === "30+") return "#9d174d";
+      return "#64748b";
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function formatDate(value) {
+      if (!value) return "n.d.";
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return "n.d.";
+      return d.toLocaleString("it-IT", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+
+    function photoLinks(p) {
+      const photos = [
+        ["Sito", p.photo_site_url || p.photo_url],
+        ["Insieme", p.photo_group_url],
+        ["Pianta", p.photo_plant_url],
+        ["Foglia", p.photo_leaf_under_url]
+      ].filter(([, url]) => !!url);
+
+      if (!photos.length) return "";
+
+      return `
+        <div class="popup-photos">
+          ${photos.map(([label, url]) =>
+            `<a href="#" class="photo-preview-link" data-photo-url="${escapeHtml(url)}" data-photo-title="${escapeHtml(label)}">${escapeHtml(label)}</a>`
+          ).join("")}
+        </div>
+      `;
+    }
+
+    function makePopup(p) {
+      return `
+        <div class="popup-title">Segnalazione peonia</div>
+        <div class="popup-row"><strong>Rilevatore:</strong> ${escapeHtml(p.compiler || p.name || "n.d.")}</div>
+        <div class="popup-row"><strong>Individui stimati:</strong> ${escapeHtml(p.individuals_estimated || p.land_cover || "n.d.")}</div>
+        <div class="popup-row"><strong>Data:</strong> ${escapeHtml(formatDate(p.created_at))}</div>
+        <div class="popup-row"><strong>Coordinate:</strong> ${Number(p.lat).toFixed(6)}, ${Number(p.lon).toFixed(6)}</div>
+        ${photoLinks(p)}
+      `;
+    }
+
+
+    function openTableModal() {
+      tableModal.classList.add("is-visible");
+      tableModal.setAttribute("aria-hidden", "false");
+      renderTable();
+      setTimeout(() => tableSearch.focus(), 80);
+    }
+
+    function closeTableModal() {
+      tableModal.classList.remove("is-visible");
+      tableModal.setAttribute("aria-hidden", "true");
+    }
+
+    function getRecordId(p) {
+      return String(p.id ?? `${p.lat}_${p.lon}_${p.created_at ?? ""}`);
+    }
+
+    function getPhotoCount(p) {
+      return [p.photo_site_url || p.photo_url, p.photo_group_url, p.photo_plant_url, p.photo_leaf_under_url]
+        .filter(Boolean).length;
+    }
+
+    function renderTable() {
+      const filter = String(tableSearch.value || "").trim().toLowerCase();
+      const rows = allPoints.filter(p => {
+        if (!filter) return true;
+        const haystack = [
+          p.compiler || p.name || "",
+          p.individuals_estimated || p.land_cover || "",
+          formatDate(p.created_at),
+          p.lat,
+          p.lon
+        ].join(" ").toLowerCase();
+        return haystack.includes(filter);
+      });
+
+      tableCount.textContent = `${rows.length} record${rows.length === 1 ? "" : "s"}`;
+
+      if (!rows.length) {
+        recordsTableBody.innerHTML = '<tr><td colspan="7" class="cell-muted">Nessuna segnalazione da mostrare.</td></tr>';
+        return;
+      }
+
+      recordsTableBody.innerHTML = rows.map(p => {
+        const id = escapeHtml(getRecordId(p));
+        const lat = Number(p.lat);
+        const lon = Number(p.lon);
+        const rilevatore = escapeHtml(p.compiler || p.name || "n.d.");
+        const individui = escapeHtml(p.individuals_estimated || p.land_cover || "n.d.");
+        const data = escapeHtml(formatDate(p.created_at));
+        const foto = getPhotoCount(p);
+        return `
+          <tr>
+            <td>${rilevatore}</td>
+            <td>${individui}</td>
+            <td>${data}</td>
+            <td>${Number.isFinite(lat) ? lat.toFixed(6) : "n.d."}</td>
+            <td>${Number.isFinite(lon) ? lon.toFixed(6) : "n.d."}</td>
+            <td>${foto ? foto : "—"}</td>
+            <td><a href="#" class="mini-link table-zoom-link" data-record-id="${id}">Vai</a></td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function buildGeoJSON() {
+      return {
+        type: "FeatureCollection",
+        name: "segnalazioni_peonie",
+        crs: {
+          type: "name",
+          properties: { name: "urn:ogc:def:crs:OGC:1.3:CRS84" }
+        },
+        features: allPoints.map(p => ({
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: [Number(p.lon), Number(p.lat)]
+          },
+          properties: {
+            id: p.id ?? null,
+            rilevatore: p.compiler || p.name || null,
+            individui_stimati: p.individuals_estimated || p.land_cover || null,
+            data: p.created_at || null,
+            photo_site_url: p.photo_site_url || p.photo_url || null,
+            photo_group_url: p.photo_group_url || null,
+            photo_plant_url: p.photo_plant_url || null,
+            photo_leaf_under_url: p.photo_leaf_under_url || null
+          }
+        }))
+      };
+    }
+
+    function downloadGeoJSON() {
+      if (!currentSession) {
+        showLogin();
+        return;
+      }
+      if (!allPoints.length) {
+        setStatus("Nessun dato da esportare. Aggiorna prima la mappa.", true);
+        return;
+      }
+
+      const geojson = buildGeoJSON();
+      const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/geo+json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const stamp = new Date().toISOString().slice(0, 19).replaceAll(":", "-");
+      a.href = url;
+      a.download = `segnalazioni_peonie_${stamp}.geojson`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setStatus("GeoJSON esportato.");
+    }
+
+
+    function escapeXml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&apos;");
+    }
+
+    function buildKML() {
+      const placemarks = allPoints.map(p => {
+        const lat = Number(p.lat);
+        const lon = Number(p.lon);
+        const name = p.compiler || p.name || "Segnalazione peonia";
+        const individui = p.individuals_estimated || p.land_cover || "n.d.";
+        const data = p.created_at || "";
+        const photos = [
+          ["Foto sito", p.photo_site_url || p.photo_url],
+          ["Foto insieme", p.photo_group_url],
+          ["Foto pianta", p.photo_plant_url],
+          ["Foto foglia", p.photo_leaf_under_url]
+        ].filter(([, url]) => !!url);
+
+        const description = [
+          `<p><strong>Rilevatore:</strong> ${escapeXml(name)}</p>`,
+          `<p><strong>Individui stimati:</strong> ${escapeXml(individui)}</p>`,
+          `<p><strong>Data:</strong> ${escapeXml(data)}</p>`,
+          `<p><strong>Coordinate:</strong> ${lat.toFixed(6)}, ${lon.toFixed(6)}</p>`,
+          ...photos.map(([label, url]) => `<p><a href="${escapeXml(url)}">${escapeXml(label)}</a></p>`)
+        ].join("");
+
+        return `
+    <Placemark>
+      <name>${escapeXml(name)}</name>
+      <description><![CDATA[${description}]]></description>
+      <ExtendedData>
+        <Data name="id"><value>${escapeXml(p.id ?? "")}</value></Data>
+        <Data name="rilevatore"><value>${escapeXml(name)}</value></Data>
+        <Data name="individui_stimati"><value>${escapeXml(individui)}</value></Data>
+        <Data name="data"><value>${escapeXml(data)}</value></Data>
+        <Data name="photo_site_url"><value>${escapeXml(p.photo_site_url || p.photo_url || "")}</value></Data>
+        <Data name="photo_group_url"><value>${escapeXml(p.photo_group_url || "")}</value></Data>
+        <Data name="photo_plant_url"><value>${escapeXml(p.photo_plant_url || "")}</value></Data>
+        <Data name="photo_leaf_under_url"><value>${escapeXml(p.photo_leaf_under_url || "")}</value></Data>
+      </ExtendedData>
+      <Point>
+        <coordinates>${lon},${lat},0</coordinates>
+      </Point>
+    </Placemark>`;
+      }).join("\n");
+
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Segnalazioni peonie</name>
+${placemarks}
+  </Document>
+</kml>`;
+    }
+
+    function downloadKML() {
+      if (!currentSession) {
+        showLogin();
+        return;
+      }
+      if (!allPoints.length) {
+        setStatus("Nessun dato da esportare. Aggiorna prima la mappa.", true);
+        return;
+      }
+
+      const kml = buildKML();
+      const blob = new Blob([kml], { type: "application/vnd.google-earth.kml+xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const stamp = new Date().toISOString().slice(0, 19).replaceAll(":", "-");
+      a.href = url;
+      a.download = `segnalazioni_peonie_${stamp}.kml`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setStatus("KML esportato.");
+    }
+
+    tableModalClose.addEventListener("click", closeTableModal);
+
+    tableModal.addEventListener("click", (event) => {
+      if (event.target === tableModal) closeTableModal();
+    });
+
+    tableSearch.addEventListener("input", renderTable);
+
+    recordsTableBody.addEventListener("click", (event) => {
+      const link = event.target.closest(".table-zoom-link");
+      if (!link) return;
+      event.preventDefault();
+      const marker = markersById.get(link.dataset.recordId);
+      if (marker) {
+        closeTableModal();
+        map.setView(marker.getLatLng(), Math.max(map.getZoom(), 15));
+        marker.openPopup();
+      }
+    });
+
+    btnTable.addEventListener("click", () => {
+      if (!currentSession) {
+        showLogin();
+        return;
+      }
+      openTableModal();
+    });
+
+    btnGeojson.addEventListener("click", downloadGeoJSON);
+    btnKml.addEventListener("click", downloadKML);
+
+    async function loadPoints() {
+      if (!currentSession) {
+        const ok = await checkSession();
+        if (!ok) return;
+      }
+
+      setStatus("Caricamento dati…");
+      layer.clearLayers();
+      markersById.clear();
+
+      const { data, error } = await sb
+        .from(TABLE)
+        .select("id, name, compiler, individuals_estimated, land_cover, lat, lon, created_at, photo_site_url, photo_group_url, photo_plant_url, photo_leaf_under_url, photo_url")
+        .not("lat", "is", null)
+        .not("lon", "is", null)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error(error);
+        allPoints = [];
+        renderTable();
+        setStatus("Errore caricamento dati: " + (error.message || "controlla policy Supabase/RLS"), true);
+        return;
+      }
+
+      const valid = (data || []).filter(p =>
+        Number.isFinite(Number(p.lat)) &&
+        Number.isFinite(Number(p.lon)) &&
+        Number(p.lat) >= -90 &&
+        Number(p.lat) <= 90 &&
+        Number(p.lon) >= -180 &&
+        Number(p.lon) <= 180
+      );
+
+      allPoints = valid;
+      renderTable();
+
+      valid.forEach(p => {
+        const category = p.individuals_estimated || p.land_cover || "";
+        const color = getColor(category);
+
+        const marker = L.circleMarker([Number(p.lat), Number(p.lon)], {
+          radius: 8,
+          color: "#ffffff",
+          weight: 2,
+          fillColor: color,
+          fillOpacity: 0.9
+        });
+
+        marker.bindPopup(makePopup(p));
+        marker.addTo(layer);
+        markersById.set(getRecordId(p), marker);
+      });
+
+      document.getElementById("totalPoints").textContent = String(valid.length);
+      document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString("it-IT", {
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+
+      if (valid.length > 0) {
+        map.fitBounds(layer.getBounds(), { padding: [30, 30], maxZoom: 15 });
+        setStatus("Dati caricati correttamente.");
+      } else {
+        setStatus("Nessun punto disponibile.");
+      }
+
+      setTimeout(() => map.invalidateSize(), 150);
+    }
+
+    btnReload.addEventListener("click", async () => {
+      map.invalidateSize();
+      const ok = await checkSession();
+      if (ok) loadPoints();
+    });
+
+    window.addEventListener("load", () => {
+      setTimeout(async () => {
+        map.invalidateSize();
+        const ok = await checkSession();
+        if (ok) loadPoints();
+      }, 250);
+    });
+
+    window.addEventListener("resize", () => {
+      map.invalidateSize();
+    });
+  </script>
+</body>
+</html>
