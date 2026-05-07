@@ -470,16 +470,33 @@
     });
 
     // =========================
-    // Compressione immagine: risoluzione dimezzata, JPG qualità 0.82
+    // Compressione immagine: dimensione fissa max 1600x1200 o 1200x1600, JPG qualità 0.60
     // =========================
-    async function resizeAndCompress(file, scale=0.5, quality=0.82){
+    async function resizeAndCompress(file, quality=0.60){
       const img = new Image();
       const url = URL.createObjectURL(file);
       await new Promise((res, rej)=>{ img.onload=res; img.onerror=rej; img.src=url; });
-      const w = Math.max(1, Math.round(img.naturalWidth * scale));
-      const h = Math.max(1, Math.round(img.naturalHeight * scale));
-      const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
-      const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
+
+      const isPortrait = img.naturalHeight > img.naturalWidth;
+      const targetW = isPortrait ? 1200 : 1600;
+      const targetH = isPortrait ? 1600 : 1200;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = targetW;
+      canvas.height = targetH;
+
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, targetW, targetH);
+
+      // Mantiene le proporzioni e riempie il riquadro finale tagliando solo l'eccesso centrale.
+      const scale = Math.max(targetW / img.naturalWidth, targetH / img.naturalHeight);
+      const drawW = img.naturalWidth * scale;
+      const drawH = img.naturalHeight * scale;
+      const dx = (targetW - drawW) / 2;
+      const dy = (targetH - drawH) / 2;
+      ctx.drawImage(img, dx, dy, drawW, drawH);
+
       const blob = await new Promise(res=>canvas.toBlob(res, 'image/jpeg', quality));
       URL.revokeObjectURL(url);
       const base = (file.name || 'photo').replace(/\.[^.]+$/, '');
@@ -595,7 +612,7 @@
       for(const [fieldId] of PHOTO_FIELDS){
         const file = $(fieldId).files[0] || null;
         if(!file){ throw new Error('Mancano una o più foto obbligatorie'); }
-        photos[fieldId] = await resizeAndCompress(file, 0.5, 0.82);
+        photos[fieldId] = await resizeAndCompress(file, 0.60);
       }
 
       return {
