@@ -28,6 +28,14 @@ Il portale include i loghi della Regione Autonoma della Sardegna e di AGRIS Sard
 
 I loghi sono inseriti nelle pagine principali dell’applicazione con funzione identificativa e istituzionale.
 
+## Licenza e riuso
+
+Il codice e i materiali di questo repository sono pubblicati a fini di documentazione tecnica e consultazione.
+
+Salvo diversa autorizzazione scritta, non è consentito copiare, riutilizzare, modificare, distribuire o impiegare il progetto, in tutto o in parte, per altri servizi, applicazioni o iniziative.
+
+I loghi, i marchi e gli elementi istituzionali presenti nel portale appartengono ai rispettivi titolari.
+
 ## Nota sui materiali istituzionali
 
 I loghi della Regione Autonoma della Sardegna e di AGRIS Sardegna sono utilizzati esclusivamente nel contesto del portale e non sono concessi in licenza con il codice del repository.
