@@ -12,7 +12,8 @@
     .page{width:100%;max-width:980px;margin:0 auto}
     header,.card{background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);backdrop-filter:blur(12px)}
     header{padding:24px;margin-bottom:16px}
-    .topline{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+    .topline{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;margin-bottom:14px}
+    .topline .institutional-logos{justify-self:center}
     .badge{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:rgba(252,231,243,.85);color:var(--dark);border:1px solid rgba(219,39,119,.16);font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
     .dot{width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#f472b6)}
     .home,.button{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;border-radius:999px;font-weight:950}
@@ -44,18 +45,16 @@
     .step:before{content:counter(step);width:36px;height:36px;display:grid;place-items:center;border-radius:999px;background:linear-gradient(135deg,var(--accent),var(--dark));color:#fff;font-weight:950;box-shadow:0 10px 24px rgba(219,39,119,.16)}
     .step h3{font-size:1rem;margin-bottom:3px}.step p{margin:0;font-size:.94rem}
     footer{color:var(--muted);text-align:center;font-size:.85rem;padding:18px 8px 4px}
-
-
     .institutional-logos{
       display:flex;
       align-items:center;
-      justify-content:flex-end;
-      gap:14px;
-      margin:-4px 0 16px;
-      padding:8px 10px;
-      border-radius:18px;
-      background:rgba(255,255,255,.56);
-      border:1px solid rgba(241,217,230,.62);
+      justify-content:center;
+      gap:12px;
+      min-width:0;
+      margin:0;
+      padding:0;
+      background:transparent;
+      border:0;
     }
     .institutional-logos a{
       display:flex;
@@ -73,11 +72,11 @@
     .institutional-logos img{
       display:block;
       max-width:100%;
-      height:38px;
+      height:34px;
       object-fit:contain;
     }
-    .institutional-logos .logo-ras img{height:34px;}
-    .institutional-logos .logo-agris img{height:42px;}
+    .institutional-logos .logo-ras img{height:30px;}
+    .institutional-logos .logo-agris img{height:36px;}
 
     .example-gallery{
       display:grid;
@@ -123,26 +122,15 @@
       .example-card img{height:210px}
     }
 
-    @media(max-width:820px){body{padding:10px}header,.card{border-radius:20px;padding:18px}.grid{grid-template-columns:1fr}.photo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.topline{align-items:flex-start}
-
-      .institutional-logos{
-        justify-content:center;
-        gap:10px;
-        margin:0 0 14px;
-        padding:7px 8px;
-      }
-      .institutional-logos a{
-        flex:1 1 0;
-        max-width:48%;
-      }
-      .institutional-logos .logo-ras img{height:28px;}
-      .institutional-logos .logo-agris img{height:34px;}
+    @media(max-width:820px){body{padding:10px}header,.card{border-radius:20px;padding:18px}.grid{grid-template-columns:1fr}.photo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.topline{gap:9px}
+      .institutional-logos{gap:9px;}
+      .institutional-logos .logo-ras img{height:25px;}
+      .institutional-logos .logo-agris img{height:30px;}
     }
-    @media(max-width:460px){.photo-grid{grid-template-columns:1fr}.home{padding:9px 11px;font-size:.88rem}
-
-      .institutional-logos{gap:8px;}
-      .institutional-logos .logo-ras img{height:24px;}
-      .institutional-logos .logo-agris img{height:29px;}
+    @media(max-width:460px){.photo-grid{grid-template-columns:1fr}.home{padding:8px 10px;font-size:.86rem}.badge{font-size:11px;padding:6px 9px;letter-spacing:.025em}.topline{gap:7px}
+      .institutional-logos{gap:7px;}
+      .institutional-logos .logo-ras img{height:21px;}
+      .institutional-logos .logo-agris img{height:26px;}
     }
   </style>
 </head>
@@ -151,15 +139,15 @@
     <header>
       <div class="topline">
         <div class="badge"><span class="dot"></span> Guida rilevamento</div>
+        <div class="institutional-logos" aria-label="Loghi istituzionali">
+          <a class="logo-ras" href="https://www.regione.sardegna.it/" target="_blank" rel="noopener noreferrer" aria-label="Regione Autonoma della Sardegna">
+            <img src="img/logo_ras_bandiera.png" alt="Regione Autonoma della Sardegna">
+          </a>
+          <a class="logo-agris" href="https://www.sardegnaagricoltura.it/innovazionericerca/" target="_blank" rel="noopener noreferrer" aria-label="Agris Sardegna">
+            <img src="img/logo_agris.png" alt="Agris Sardegna">
+          </a>
+        </div>
         <a class="home" href="index.html">Home</a>
-      </div>
-      <div class="institutional-logos" aria-label="Loghi istituzionali">
-        <a class="logo-ras" href="https://www.regione.sardegna.it/" target="_blank" rel="noopener noreferrer" aria-label="Regione Autonoma della Sardegna">
-          <img src="img/logo_ras_bandiera.png" alt="Regione Autonoma della Sardegna">
-        </a>
-        <a class="logo-agris" href="https://www.sardegnaagricoltura.it/innovazionericerca/" target="_blank" rel="noopener noreferrer" aria-label="Agris Sardegna">
-          <img src="img/logo_agris.png" alt="Agris Sardegna">
-        </a>
       </div>
       <h1>Come segnalare correttamente una peonia</h1>
       <p class="lead">Questa guida aiuta i rilevatori a inviare segnalazioni utili e verificabili.
