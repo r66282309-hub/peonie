@@ -24,7 +24,7 @@ I dati raccolti possono essere utilizzati per finalità scientifiche, conoscitiv
 
 ## Enti e supporto
 
-Il portale include i loghi della Regione Autonoma della Sardegna e di AGRIS Sardegna in relazione al contesto istituzionale, al supporto o alla fornitura del servizio nell’ambito delle attività di censimento e monitoraggio della peonia selvatica in Sardegna.
+Il portale include i loghi della Regione Autonoma della Sardegna e di AGRIS Sardegna Agricoltura in relazione al contesto istituzionale, al supporto o alla fornitura del servizio nell’ambito delle attività di censimento e monitoraggio della peonia selvatica in Sardegna.
 
 I loghi sono inseriti nelle pagine principali dell’applicazione con funzione identificativa e istituzionale.
 
