@@ -33,5 +33,11 @@ peonie/
 ├── manifest.json           # Manifest PWA
 ├── service-worker.js       # Service worker per cache e funzionalità PWA
 ├── icons/                  # Icone dell'applicazione
-├── img/                    # Immagini e materiali grafici
+├── img/                    # Immagini, esempi fotografici e loghi istituzionali
 └── README.md               # Documentazione del progetto
+
+## Enti e supporto
+
+Il portale include i loghi della Regione Autonoma della Sardegna e di AGRIS Sardegna in relazione al contesto istituzionale, al supporto o alla fornitura del servizio nell’ambito delle attività di censimento e monitoraggio della peonia selvatica in Sardegna.
+
+I loghi sono inseriti nelle pagine principali dell’applicazione con funzione identificativa e istituzionale.
