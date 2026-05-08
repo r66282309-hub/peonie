@@ -22,6 +22,12 @@ L’applicazione è pensata per supportare attività di monitoraggio naturalisti
 
 I dati raccolti possono essere utilizzati per finalità scientifiche, conoscitive, gestionali e di conservazione, con particolare riferimento alla distribuzione e alla documentazione delle popolazioni spontanee di peonia in Sardegna.
 
+## Enti e supporto
+
+Il portale include i loghi della Regione Autonoma della Sardegna e di AGRIS Sardegna in relazione al contesto istituzionale, al supporto o alla fornitura del servizio nell’ambito delle attività di censimento e monitoraggio della peonia selvatica in Sardegna.
+
+I loghi sono inseriti nelle pagine principali dell’applicazione con funzione identificativa e istituzionale.
+
 ## Struttura del repository
 
 ```text
@@ -36,8 +42,4 @@ peonie/
 ├── img/                    # Immagini, esempi fotografici e loghi istituzionali
 └── README.md               # Documentazione del progetto
 
-## Enti e supporto
 
-Il portale include i loghi della Regione Autonoma della Sardegna e di AGRIS Sardegna in relazione al contesto istituzionale, al supporto o alla fornitura del servizio nell’ambito delle attività di censimento e monitoraggio della peonia selvatica in Sardegna.
-
-I loghi sono inseriti nelle pagine principali dell’applicazione con funzione identificativa e istituzionale.
