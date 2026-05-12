@@ -664,6 +664,7 @@
         <a class="link-button" href="index.html">Home</a>
         <button type="button" id="btnReload" disabled>Aggiorna dati</button>
         <button type="button" id="btnTable" disabled>Tabella</button>
+        <button type="button" id="btnNotes" disabled>Utenti iscritti</button>
         <button type="button" id="btnGeojson" disabled>Esporta GeoJSON</button>
         <button type="button" id="btnKml" disabled>Esporta KML</button>
         <button type="button" id="btnLogout" class="is-hidden">Esci</button>
@@ -759,6 +760,38 @@
     </div>
   </div>
 
+
+
+  <div class="table-modal" id="notesModal" aria-hidden="true">
+    <div class="table-modal-content" role="dialog" aria-modal="true" aria-labelledby="notesModalTitle">
+      <div class="table-modal-header">
+        <div class="table-modal-title" id="notesModalTitle">Utenti iscritti</div>
+        <button class="table-modal-close" id="notesModalClose" type="button" aria-label="Chiudi note rilevatori">×</button>
+      </div>
+      <div class="table-toolbar">
+        <input id="notesSearch" type="search" placeholder="Filtra per nome, email, data…">
+        <div class="table-count" id="notesCount">0 record</div>
+      </div>
+      <div class="table-wrap">
+        <table class="records-table" id="notesTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Data</th>
+              <th>Nome e cognome</th>
+              <th>Email</th>
+              <th>Menzione contributore</th>
+              <th>Consenso</th>
+            </tr>
+          </thead>
+          <tbody id="notesTableBody">
+            <tr><td colspan="6" class="cell-muted">Nessun dato caricato.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <div class="photo-modal" id="photoModal" aria-hidden="true">
     <div class="photo-modal-content" role="dialog" aria-modal="true" aria-label="Anteprima foto">
       <div class="photo-modal-header">
@@ -773,10 +806,12 @@
     const SUPABASE_URL = "https://bvdabdniussqmjjxvrdb.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2ZGFiZG5pdXNzcW1qanh2cmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNjMwMTAsImV4cCI6MjA3NzkzOTAxMH0.pMKdERP0lygqVoYSsEI4eH60BYcXr5QwJNhxf1ZUddM";
     const TABLE = "points";
+    const NOTES_TABLE = "note_rilevatori";
 
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     let currentSession = null;
     let allPoints = [];
+    let allNotes = [];
     const markersById = new Map();
 
     const authOverlay = document.getElementById("authOverlay");
@@ -789,6 +824,7 @@
     const btnLogout = document.getElementById("btnLogout");
     const btnReload = document.getElementById("btnReload");
     const btnTable = document.getElementById("btnTable");
+    const btnNotes = document.getElementById("btnNotes");
     const btnGeojson = document.getElementById("btnGeojson");
     const btnKml = document.getElementById("btnKml");
     const tableModal = document.getElementById("tableModal");
@@ -796,6 +832,11 @@
     const tableSearch = document.getElementById("tableSearch");
     const tableCount = document.getElementById("tableCount");
     const recordsTableBody = document.getElementById("recordsTableBody");
+    const notesModal = document.getElementById("notesModal");
+    const notesModalClose = document.getElementById("notesModalClose");
+    const notesSearch = document.getElementById("notesSearch");
+    const notesCount = document.getElementById("notesCount");
+    const notesTableBody = document.getElementById("notesTableBody");
 
     function setAuthStatus(message, type = "") {
       authStatus.textContent = message || "";
@@ -807,6 +848,7 @@
       authOverlay.setAttribute("aria-hidden", "false");
       btnReload.disabled = true;
       btnTable.disabled = true;
+      btnNotes.disabled = true;
       btnGeojson.disabled = true;
       btnKml.disabled = true;
       setStatus("Accesso riservato: effettua il login per caricare i dati.", true);
@@ -823,6 +865,7 @@
       const logged = !!session;
       btnReload.disabled = !logged;
       btnTable.disabled = !logged;
+      btnNotes.disabled = !logged;
       btnGeojson.disabled = !logged;
       btnKml.disabled = !logged;
       btnLogout.classList.toggle("is-hidden", !logged);
@@ -879,9 +922,11 @@
       await sb.auth.signOut();
       currentSession = null;
       allPoints = [];
+      allNotes = [];
       markersById.clear();
       layer.clearLayers();
       renderTable();
+      renderNotesTable();
       document.getElementById("totalPoints").textContent = "0";
       document.getElementById("lastUpdate").textContent = "—";
       updateAuthUI(null);
@@ -934,6 +979,7 @@
       if (event.key === "Escape") {
         closePhotoModal();
         closeTableModal();
+        closeNotesModal();
       }
     });
 
@@ -1023,6 +1069,81 @@
     function closeTableModal() {
       tableModal.classList.remove("is-visible");
       tableModal.setAttribute("aria-hidden", "true");
+    }
+
+    function openNotesModal() {
+      notesModal.classList.add("is-visible");
+      notesModal.setAttribute("aria-hidden", "false");
+      loadNotes();
+      setTimeout(() => notesSearch.focus(), 80);
+    }
+
+    function closeNotesModal() {
+      notesModal.classList.remove("is-visible");
+      notesModal.setAttribute("aria-hidden", "true");
+    }
+
+    function formatBoolSiNo(value) {
+      return value === true ? "SI" : "NO";
+    }
+
+    function renderNotesTable() {
+      const filter = String(notesSearch.value || "").trim().toLowerCase();
+      const rows = allNotes.filter(n => {
+        if (!filter) return true;
+        const haystack = [
+          n.id,
+          formatDate(n.created_at),
+          n.nome_cognome || "",
+          n.email || "",
+          formatBoolSiNo(n.menzione_contributore),
+          formatBoolSiNo(n.consenso)
+        ].join(" ").toLowerCase();
+        return haystack.includes(filter);
+      });
+
+      notesCount.textContent = `${rows.length} record${rows.length === 1 ? "" : "s"}`;
+
+      if (!rows.length) {
+        notesTableBody.innerHTML = '<tr><td colspan="6" class="cell-muted">Nessuna nota rilevatore da mostrare.</td></tr>';
+        return;
+      }
+
+      notesTableBody.innerHTML = rows.map(n => `
+        <tr>
+          <td>${escapeHtml(n.id ?? "")}</td>
+          <td>${escapeHtml(formatDate(n.created_at))}</td>
+          <td>${escapeHtml(n.nome_cognome || "n.d.")}</td>
+          <td>${escapeHtml(n.email || "n.d.")}</td>
+          <td>${escapeHtml(formatBoolSiNo(n.menzione_contributore))}</td>
+          <td>${escapeHtml(formatBoolSiNo(n.consenso))}</td>
+        </tr>
+      `).join("");
+    }
+
+    async function loadNotes() {
+      if (!currentSession) {
+        const ok = await checkSession();
+        if (!ok) return;
+      }
+
+      notesTableBody.innerHTML = '<tr><td colspan="6" class="cell-muted">Caricamento note rilevatori…</td></tr>';
+      notesCount.textContent = "0 record";
+
+      const { data, error } = await sb
+        .from(NOTES_TABLE)
+        .select("id, created_at, nome_cognome, email, menzione_contributore, consenso")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error(error);
+        allNotes = [];
+        notesTableBody.innerHTML = `<tr><td colspan="6" class="cell-muted">Errore caricamento note: ${escapeHtml(error.message || "controlla policy Supabase/RLS")}</td></tr>`;
+        return;
+      }
+
+      allNotes = data || [];
+      renderNotesTable();
     }
 
     function getRecordId(p) {
@@ -1222,6 +1343,14 @@ ${placemarks}
 
     tableSearch.addEventListener("input", renderTable);
 
+    notesModalClose.addEventListener("click", closeNotesModal);
+
+    notesModal.addEventListener("click", (event) => {
+      if (event.target === notesModal) closeNotesModal();
+    });
+
+    notesSearch.addEventListener("input", renderNotesTable);
+
     recordsTableBody.addEventListener("click", (event) => {
       const link = event.target.closest(".table-zoom-link");
       if (!link) return;
@@ -1240,6 +1369,14 @@ ${placemarks}
         return;
       }
       openTableModal();
+    });
+
+    btnNotes.addEventListener("click", () => {
+      if (!currentSession) {
+        showLogin();
+        return;
+      }
+      openNotesModal();
     });
 
     btnGeojson.addEventListener("click", downloadGeoJSON);
