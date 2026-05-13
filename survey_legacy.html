@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="it"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+  <title>Segnalazione storica peonie</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    // Stesso accesso Supabase del survey originario
+    window.SUPABASE_URL = 'https://bvdabdniussqmjjxvrdb.supabase.co';
+    window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2ZGFiZG5pdXNzcW1qanh2cmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNjMwMTAsImV4cCI6MjA3NzkzOTAxMH0.pMKdERP0lygqVoYSsEI4eH60BYcXr5QwJNhxf1ZUddM';
+    window.DEFAULT_TABLE = 'segnalazioni_storiche_peonie';
+    window.DEFAULT_BUCKET = 'soil_photos';
+  </script>
+
+  <style>
+    :root{
+      --bg:#ffffff; --ink:#0f172a; --muted:#475569; --line:#e2e8f0;
+      --brand:#166534; --brand2:#22c55e; --surface:#f8fafc;
+      --ok:#16a34a; --warn:#b45309; --err:#dc2626;
+    }
+    *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+    html,body{width:100%; min-height:100%; margin:0; padding:0; background:var(--bg); overflow-x:hidden;}
+    body{width:100%; color:var(--ink); font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; padding-bottom:40px; overflow-x:hidden;}
+    .wrap{width:100%; max-width:760px; margin:0 auto; padding:12px;}
+    h1{margin:0 0 4px; font-size:24px;}
+    p.lead{margin:0; color:var(--muted); font-size:15px;}
+    .card{background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:18px; box-shadow:0 8px 30px rgba(0,0,20,.06);}
+    .grid{display:grid; grid-template-columns:1fr; gap:16px;}
+    @media (min-width:600px){.grid{grid-template-columns:1fr 1fr;} .full{grid-column:1/-1;}}
+    label{display:block; font-weight:700; margin-bottom:6px; font-size:15px;}
+    input[type="text"], select, textarea{width:100%; padding:14px 12px; font-size:16px; border-radius:12px; border:1px solid var(--line); background:#fff;}
+    textarea{min-height:110px; resize:vertical;}
+    input:focus, select:focus, textarea:focus{border-color:var(--brand); box-shadow:0 0 0 3px rgba(22,101,52,.18); outline:none;}
+    .hint{font-size:12px; color:var(--muted); margin-top:4px;}
+    .mini{font-size:13px; color:var(--muted);}
+    .ok{color:var(--ok)} .err{color:var(--err)} .warn{color:var(--warn)}
+    .row{display:flex; gap:10px; flex-wrap:wrap;}
+    button{width:100%; appearance:none; border:0; border-radius:14px; padding:14px 16px; font-weight:800; font-size:17px; cursor:pointer; background:var(--brand); color:#fff; box-shadow:0 6px 16px rgba(22,101,52,.25);}
+    button:active{transform:scale(.98);} button:disabled{opacity:.6; cursor:not-allowed; box-shadow:none;}
+    .toast{position:fixed; left:50%; bottom:16px; transform:translateX(-50%) translateY(8px); background:#0f172a; color:#fff; padding:10px 14px; font-size:14px; font-weight:700; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,20,.18); opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease; z-index:3000; max-width:92%; text-align:center;}
+    .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+    .coord-box{background:#fff; border:1px solid var(--line); border-radius:16px; padding:14px;}
+    .coord-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;}
+    .coord-grid label{font-size:12px; color:var(--muted); margin-bottom:4px; font-weight:700;}
+    .coord-grid input{font-size:14px; padding:10px;}
+    @media (max-width:480px){.coord-grid{grid-template-columns:1fr;}}
+    .choice-grid{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px;}
+    .choice-btn{min-height:58px; border-radius:16px; background:#ffffff; color:var(--brand); border:2px solid var(--line); box-shadow:none; font-size:17px; font-weight:900; padding:12px 8px;}
+    .choice-btn.is-selected{background:linear-gradient(135deg, var(--brand), #db2777); color:#fff; border-color:transparent; box-shadow:0 8px 22px rgba(22,101,52,.22);}
+    .photo-grid{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;}
+    .photo-tile{min-height:136px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; background:#ffffff; border:2px dashed var(--line); border-radius:18px; padding:14px 10px; cursor:pointer; transition:border-color .15s ease, background .15s ease, transform .15s ease;}
+    .photo-tile:hover{border-color:var(--brand2); background:#f0fdf4;}
+    .photo-tile:active{transform:scale(.98);}
+    .photo-tile.has-file{border-style:solid; border-color:var(--brand2); background:#f0fdf4;}
+    .photo-icon{font-size:30px; line-height:1;}
+    .photo-title{font-weight:900; color:var(--ink); font-size:15px; line-height:1.2;}
+    .photo-status{font-size:12px; color:var(--muted); line-height:1.25;}
+    .hidden-file{position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;}
+    @media (max-width:520px){.choice-grid{grid-template-columns:repeat(2, minmax(0, 1fr));}.photo-grid{grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px;}.photo-tile{min-height:126px; padding:12px 8px;}}
+    @media (max-width:600px){body{padding-bottom:24px;}.wrap{max-width:none; width:100vw; padding:8px; margin:0;}.card{width:100%; border-radius:14px; padding:12px;}.grid{width:100%; gap:12px;}input[type="text"],select,textarea,button{max-width:100%;}.photo-grid,.choice-grid{width:100%;}.toast{max-width:calc(100vw - 16px);}}
+    .survey-header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:20px;}
+    .survey-copy{min-width:0;}
+    .institutional-logos{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex:0 0 auto;padding-top:2px;}
+    .institutional-logos img{display:block;max-height:24px;width:auto;object-fit:contain;}
+    @media (max-width:480px){.survey-header{gap:10px}.institutional-logos{gap:7px}.institutional-logos img{max-height:19px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="survey-header">
+      <div class="survey-copy">
+        <h1>Segnalazione storica peonie</h1>
+        <p class="lead">Modulo per segnalazioni pregresse o non raccolte con il protocollo di campo.</p>
+      </div>
+      <div class="institutional-logos" aria-label="Loghi istituzionali">
+        <img src="img/logo_ras_bandiera.png" alt="Regione Autonoma della Sardegna">
+        <img src="img/logo_agris.png" alt="Agris Sardegna">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="grid">
+        <div class="full">
+          <label for="compiler">Nome e cognome segnalatore *</label>
+          <input id="compiler" type="text" maxlength="120" placeholder="Nome e cognome">
+          <div class="hint">Campo obbligatorio. Max 120 caratteri.</div>
+        </div>
+
+        <div class="full coord-box">
+          <label>Coordinate, se disponibili</label>
+          <div class="mini">Inserisci le coordinate come le conosci: gradi decimali, gradi primi secondi, UTM, testo copiato da GPS o mappa. Non è richiesta l'acquisizione automatica.</div>
+          <div class="coord-grid">
+            <div>
+              <label for="lat">Latitudine / Nord</label>
+              <input id="lat" type="text" maxlength="120" placeholder="es. 40.12345 oppure 40° 07' 24\&quot; N">
+            </div>
+            <div>
+              <label for="lon">Longitudine / Est</label>
+              <input id="lon" type="text" maxlength="120" placeholder="es. 8.12345 oppure 8° 07' 24\&quot; E">
+            </div>
+          </div>
+        </div>
+
+        <div class="full">
+          <label for="place_description">Descrizione del luogo e della presenza di individui *</label>
+          <textarea id="place_description" maxlength="3000" placeholder="Descrivi il luogo, il contesto, la località, la presenza osservata, eventuali riferimenti riconoscibili..."></textarea>
+          <div class="hint">Campo obbligatorio. Può sostituire o integrare le coordinate.</div>
+        </div>
+
+        <div class="full">
+          <label for="itinerary">Itinerario / percorso per raggiungere il sito</label>
+          <textarea id="itinerary" maxlength="3000" placeholder="Descrivi sentieri, strade, punti di partenza, tempi di percorrenza, deviazioni, riferimenti sul terreno..."></textarea>
+        </div>
+
+        <div class="full">
+          <label>Numero piante stimate</label>
+          <input id="individuals_estimated" type="hidden" value="">
+          <div class="choice-grid" role="group" aria-label="Numero individui stimati">
+            <button class="choice-btn" type="button" data-value="1-9">1-9</button>
+            <button class="choice-btn" type="button" data-value="10-19">10-19</button>
+            <button class="choice-btn" type="button" data-value="20-29">20-29</button>
+            <button class="choice-btn" type="button" data-value="più di 30">&gt;30</button>
+          </div>
+          <div class="hint">Facoltativo: usa la stima più vicina al ricordo o alla foto.</div>
+        </div>
+
+        <div class="full">
+          <label for="observation_period">Data o periodo dell'osservazione</label>
+          <input id="observation_period" type="text" maxlength="160" placeholder="es. maggio 2021, primavera 2018, circa 10 anni fa...">
+          <div class="hint">Facoltativo, ma utile per interpretare la segnalazione storica.</div>
+        </div>
+
+        <div class="full">
+          <label>Foto generiche facoltative</label>
+          <div class="photo-grid">
+            <label class="photo-tile" for="photo_1" id="tile_photo_1">
+              <span class="photo-icon" aria-hidden="true">📷</span>
+              <span class="photo-title">Foto 1</span>
+              <span class="photo-status" id="status_photo_1">Tocca per scegliere</span>
+            </label>
+            <label class="photo-tile" for="photo_2" id="tile_photo_2">
+              <span class="photo-icon" aria-hidden="true">📷</span>
+              <span class="photo-title">Foto 2</span>
+              <span class="photo-status" id="status_photo_2">Tocca per scegliere</span>
+            </label>
+            <label class="photo-tile" for="photo_3" id="tile_photo_3">
+              <span class="photo-icon" aria-hidden="true">📷</span>
+              <span class="photo-title">Foto 3</span>
+              <span class="photo-status" id="status_photo_3">Tocca per scegliere</span>
+            </label>
+            <label class="photo-tile" for="photo_4" id="tile_photo_4">
+              <span class="photo-icon" aria-hidden="true">📷</span>
+              <span class="photo-title">Foto 4</span>
+              <span class="photo-status" id="status_photo_4">Tocca per scegliere</span>
+            </label>
+          </div>
+          <input id="photo_1" class="hidden-file" type="file" accept="image/*">
+          <input id="photo_2" class="hidden-file" type="file" accept="image/*">
+          <input id="photo_3" class="hidden-file" type="file" accept="image/*">
+          <input id="photo_4" class="hidden-file" type="file" accept="image/*">
+        </div>
+
+        <div class="full">
+          <label for="notes">Note</label>
+          <textarea id="notes" maxlength="3000" placeholder="Altre informazioni utili, incertezza della posizione, fonte della segnalazione, contatti eventuali..."></textarea>
+        </div>
+
+        <div class="full row">
+          <button id="btnAdd">Invia segnalazione storica</button>
+        </div>
+
+        <div class="full">
+          <div id="status" class="mini"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const $ = (id)=>document.getElementById(id);
+    const PHOTO_FIELDS = [
+      ['photo_1', 'photo_1'],
+      ['photo_2', 'photo_2'],
+      ['photo_3', 'photo_3'],
+      ['photo_4', 'photo_4']
+    ];
+
+    function showToast(msg){
+      const t = $('toast'); if(!t) return;
+      t.textContent = msg || 'OK';
+      t.classList.add('show'); clearTimeout(showToast._t);
+      showToast._t = setTimeout(()=> t.classList.remove('show'), 4000);
+    }
+    function setStatus(msg, cls){ const el=$('status'); el.textContent = msg||''; el.className='mini ' + (cls||''); }
+
+    document.addEventListener('DOMContentLoaded', ()=>{
+      document.querySelectorAll('.choice-btn').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const alreadySelected = btn.classList.contains('is-selected');
+          document.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('is-selected'));
+          if(alreadySelected){
+            $('individuals_estimated').value = '';
+          }else{
+            btn.classList.add('is-selected');
+            $('individuals_estimated').value = btn.dataset.value || '';
+          }
+        });
+      });
+
+      PHOTO_FIELDS.forEach(([fieldId])=>{
+        const input = $(fieldId);
+        const tile = $('tile_' + fieldId);
+        const status = $('status_' + fieldId);
+        if(input && tile && status){
+          input.addEventListener('change', ()=>{
+            const file = input.files && input.files[0];
+            if(file){
+              tile.classList.add('has-file');
+              status.textContent = 'Foto selezionata ✓';
+            }else{
+              tile.classList.remove('has-file');
+              status.textContent = 'Tocca per scegliere';
+            }
+          });
+        }
+      });
+
+      $('btnAdd').addEventListener('click', handleSubmit);
+    });
+
+    async function resizeAndCompress(file, quality=0.65){
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      await new Promise((res, rej)=>{ img.onload=res; img.onerror=rej; img.src=url; });
+
+      const isPortrait = img.naturalHeight > img.naturalWidth;
+      const targetW = isPortrait ? 1200 : 1600;
+      const targetH = isPortrait ? 1600 : 1200;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = targetW;
+      canvas.height = targetH;
+
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, targetW, targetH);
+
+      const scale = Math.max(targetW / img.naturalWidth, targetH / img.naturalHeight);
+      const drawW = img.naturalWidth * scale;
+      const drawH = img.naturalHeight * scale;
+      const dx = (targetW - drawW) / 2;
+      const dy = (targetH - drawH) / 2;
+      ctx.drawImage(img, dx, dy, drawW, drawH);
+
+      const blob = await new Promise(res=>canvas.toBlob(res, 'image/jpeg', quality));
+      URL.revokeObjectURL(url);
+      const base = (file.name || 'photo').replace(/\.[^.]+$/, '');
+      return new File([blob], `${base}.jpg`, {type:'image/jpeg'});
+    }
+
+    function getSupabaseClient(){
+      const url = window.SUPABASE_URL;
+      const key = window.SUPABASE_ANON_KEY;
+      if(!url || !key) throw new Error('Parametri Supabase mancanti');
+      if(!window.supabase) throw new Error('Libreria Supabase non caricata');
+      return supabase.createClient(url, key);
+    }
+
+    function safePart(s){
+      return String(s || 'segnalazione')
+        .trim()
+        .replace(/[^a-z0-9-_]+/gi,'_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0,42) || 'segnalazione';
+    }
+
+    function folderDate(value){
+      const d = value ? new Date(value) : new Date();
+      const pad = n => String(n).padStart(2, '0');
+      if(Number.isNaN(d.getTime())){
+        const now = new Date();
+        return `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+      }
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+    }
+
+    function recordFolderName(record){
+      return `${safePart(record.compiler)}_${folderDate(record.created_at)}`;
+    }
+
+    async function uploadPhotoToSupabase(file, record, kind){
+      const sb = getSupabaseClient();
+      const bucket = window.DEFAULT_BUCKET || 'soil_photos';
+      const folder = recordFolderName(record);
+      const path = `peonie_storiche/${folder}/${safePart(kind)}.jpg`;
+      const { error } = await sb.storage.from(bucket).upload(path, file, {contentType:'image/jpeg', upsert:true});
+      if(error) throw error;
+      const { data } = sb.storage.from(bucket).getPublicUrl(path);
+      return data.publicUrl;
+    }
+
+    async function buildRecordFromForm(){
+      const compiler = $('compiler').value.trim();
+      const lat = $('lat').value.trim();
+      const lon = $('lon').value.trim();
+      const place_description = $('place_description').value.trim();
+      const itinerary = $('itinerary').value.trim();
+      const individuals_estimated = $('individuals_estimated').value;
+      const observation_period = $('observation_period').value.trim();
+      const notes = $('notes').value.trim();
+
+      if(!compiler){ throw new Error('Nome e cognome segnalatore obbligatorio'); }
+      if(!place_description){ throw new Error('Descrizione del luogo obbligatoria'); }
+
+      const photos = {};
+      for(const [fieldId] of PHOTO_FIELDS){
+        const file = $(fieldId).files[0] || null;
+        if(file){ photos[fieldId] = await resizeAndCompress(file, 0.65); }
+      }
+
+      return {
+        local_id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + '_' + Math.random().toString(16).slice(2),
+        compiler,
+        lat,
+        lon,
+        place_description,
+        itinerary,
+        individuals_estimated,
+        observation_period,
+        notes,
+        photos,
+        created_at: new Date().toISOString()
+      };
+    }
+
+    async function sendRecordToSupabase(record){
+      const photoUrls = {};
+      for(const [fieldId, kind] of PHOTO_FIELDS){
+        const f = record.photos[fieldId];
+        if(f){ photoUrls[fieldId + '_url'] = await uploadPhotoToSupabase(f, record, kind); }
+      }
+
+      const sb = getSupabaseClient();
+      const table = window.DEFAULT_TABLE || 'segnalazioni_storiche_peonie';
+      const payload = {
+        compiler: record.compiler.slice(0,120),
+        lat: record.lat || null,
+        lon: record.lon || null,
+        place_description: record.place_description || null,
+        itinerary: record.itinerary || null,
+        individuals_estimated: record.individuals_estimated || null,
+        observation_period: record.observation_period || null,
+        notes: record.notes || null,
+        photo_1_url: photoUrls.photo_1_url || null,
+        photo_2_url: photoUrls.photo_2_url || null,
+        photo_3_url: photoUrls.photo_3_url || null,
+        photo_4_url: photoUrls.photo_4_url || null,
+        created_at: record.created_at,
+        local_id: record.local_id
+      };
+
+      const { error } = await sb.from(table).insert([payload]);
+      if(error) throw error;
+      return true;
+    }
+
+    function resetFormKeepCompiler(){
+      $('lat').value = '';
+      $('lon').value = '';
+      $('place_description').value = '';
+      $('itinerary').value = '';
+      $('individuals_estimated').value = '';
+      $('observation_period').value = '';
+      $('notes').value = '';
+      document.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('is-selected'));
+      for(const [fieldId] of PHOTO_FIELDS){
+        $(fieldId).value = '';
+        const tile = $('tile_' + fieldId);
+        const status = $('status_' + fieldId);
+        if(tile) tile.classList.remove('has-file');
+        if(status) status.textContent = 'Tocca per scegliere';
+      }
+    }
+
+    async function handleSubmit(){
+      $('btnAdd').disabled = true;
+      setStatus('Preparo e invio la segnalazione…');
+      try{
+        const record = await buildRecordFromForm();
+        await sendRecordToSupabase(record);
+        showToast('Segnalazione storica inviata. Grazie!');
+        setStatus('Segnalazione caricata correttamente.', 'ok');
+        resetFormKeepCompiler();
+      }catch(e){
+        console.error(e);
+        setStatus(e.message || String(e), 'err');
+        showToast('Controlla i campi o la connessione');
+      }finally{
+        $('btnAdd').disabled = false;
+      }
+    }
+  </script>
+</body></html>
