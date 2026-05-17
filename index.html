@@ -144,6 +144,23 @@
       margin-bottom: 14px;
     }
 
+
+    .counter-badge strong {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 2.2em;
+      padding: 2px 8px;
+      margin-left: 2px;
+      border-radius: 999px;
+      background: #ffffff;
+      color: var(--accent-dark);
+      border: 1px solid rgba(219, 39, 119, 0.16);
+      font-size: 0.98rem;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+    }
+
     .dot {
       width: 8px;
       height: 8px;
@@ -709,7 +726,11 @@
           <img class="institutional-logo agris" src="img/logo_agris.png" alt="Agris - Agenzia regionale per la ricerca in agricoltura">
         </a>
       </div>
-      <div class="badge"><span class="dot"></span> Peonia survey</div>
+      <div class="badge counter-badge" aria-label="Numero segnalazioni volontarie ricevute">
+        <span class="dot"></span>
+        <span>Segnalazioni volontarie</span>
+        <strong id="peonieCounter">—</strong>
+      </div>
       <h1>Censimento della peonia selvatica in Sardegna</h1>
       <p class="subtitle">
          Portale per la raccolta, gestione e consultazione delle segnalazioni nel territorio regionale.
@@ -1048,6 +1069,42 @@ quando non necessario.</li>
         openModal(true);
       }
     })();
+
+
+    (function () {
+      const SUPABASE_URL = 'https://bvdabdniussqmjjxvrdb.supabase.co';
+      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2ZGFiZG5pdXNzcW1qanh2cmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNjMwMTAsImV4cCI6MjA3NzkzOTAxMH0.pMKdERP0lygqVoYSsEI4eH60BYcXr5QwJNhxf1ZUddM';
+      const counter = document.getElementById('peonieCounter');
+
+      async function loadPeonieCounter() {
+        if (!counter) return;
+
+        try {
+          const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_peonie_count`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            },
+            body: '{}'
+          });
+
+          if (!response.ok) {
+            throw new Error('Errore conteggio: ' + response.status);
+          }
+
+          const value = await response.json();
+          counter.textContent = Number(value || 0).toLocaleString('it-IT');
+        } catch (error) {
+          console.warn('Conteggio segnalazioni non disponibile:', error);
+          counter.textContent = '—';
+        }
+      }
+
+      loadPeonieCounter();
+    })();
+
   </script>
 
 
