@@ -12,9 +12,10 @@ Il progetto nasce con l’obiettivo di fornire uno strumento semplice, leggero e
 - Ridimensionamento automatico delle immagini prima dell’invio.
 - Funzionamento come Progressive Web App installabile su smartphone.
 - Cache locale per migliorare l’utilizzo in condizioni di connettività variabile.
-- Mappa di consultazione delle segnalazioni.
+- Mappa di consultazione delle segnalazioni per utenti autorizzati.
 - Esportazione dei dati in formati geografici, dove prevista.
 - Guida pratica per il corretto rilevamento fotografico e descrittivo.
+- Form per segnalazioni pregresse non raccolte con il protocollo di campo.
 
 ## Scopo del progetto
 
