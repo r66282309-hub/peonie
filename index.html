@@ -161,6 +161,36 @@
       letter-spacing: -0.02em;
     }
 
+
+    .counter-badge-stack {
+      align-items: flex-start;
+      text-align: left;
+      gap: 10px;
+    }
+
+    .counter-lines {
+      display: grid;
+      gap: 4px;
+    }
+
+    .counter-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-width: 230px;
+    }
+
+    .counter-line strong {
+      flex: 0 0 auto;
+    }
+
+    @media (max-width: 700px) {
+      .counter-line {
+        min-width: min(230px, calc(100vw - 90px));
+      }
+    }
+
     .dot {
       width: 8px;
       height: 8px;
@@ -726,10 +756,17 @@
           <img class="institutional-logo agris" src="img/logo_agris.png" alt="Agris - Agenzia regionale per la ricerca in agricoltura">
         </a>
       </div>
-      <div class="badge counter-badge" aria-label="Numero segnalazioni volontarie ricevute">
-        <span class="dot"></span>
-        <span>Segnalazioni volontarie</span>
-        <strong id="peonieCounter">—</strong>
+      <div class="badge counter-badge counter-badge-stack" aria-label="Statistiche pubbliche del progetto">
+        <span class="counter-lines">
+          <span class="counter-line">
+            <span>Segnalazioni volontarie</span>
+            <strong id="peonieCounter">—</strong>
+          </span>
+          <span class="counter-line">
+            <span>Persone registrate</span>
+            <strong id="rilevatoriCounter">—</strong>
+          </span>
+        </span>
       </div>
       <h1>Censimento della peonia selvatica in Sardegna</h1>
       <p class="subtitle">
@@ -1074,13 +1111,13 @@ quando non necessario.</li>
     (function () {
       const SUPABASE_URL = 'https://bvdabdniussqmjjxvrdb.supabase.co';
       const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2ZGFiZG5pdXNzcW1qanh2cmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNjMwMTAsImV4cCI6MjA3NzkzOTAxMH0.pMKdERP0lygqVoYSsEI4eH60BYcXr5QwJNhxf1ZUddM';
-      const counter = document.getElementById('peonieCounter');
 
-      async function loadPeonieCounter() {
-        if (!counter) return;
+      async function loadRpcCounter(elementId, rpcName) {
+        const el = document.getElementById(elementId);
+        if (!el) return;
 
         try {
-          const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_peonie_count`, {
+          const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${rpcName}`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1091,18 +1128,19 @@ quando non necessario.</li>
           });
 
           if (!response.ok) {
-            throw new Error('Errore conteggio: ' + response.status);
+            throw new Error(`Errore ${rpcName}: ${response.status}`);
           }
 
           const value = await response.json();
-          counter.textContent = Number(value || 0).toLocaleString('it-IT');
+          el.textContent = Number(value || 0).toLocaleString('it-IT');
         } catch (error) {
-          console.warn('Conteggio segnalazioni non disponibile:', error);
-          counter.textContent = '—';
+          console.warn(`Conteggio non disponibile: ${rpcName}`, error);
+          el.textContent = '—';
         }
       }
 
-      loadPeonieCounter();
+      loadRpcCounter('peonieCounter', 'get_peonie_count');
+      loadRpcCounter('rilevatoriCounter', 'get_rilevatori_count');
     })();
 
   </script>
