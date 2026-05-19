@@ -1,0 +1,30 @@
+name: Supabase Heartbeat
+
+on:
+  schedule:
+    # Ogni lunedì e giovedì alle 08:00 UTC
+    # In Italia: 09:00 in inverno, 10:00 in estate
+    - cron: "0 8 * * 1,4"
+
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ping Supabase get_peonie_count
+        run: |
+          curl -sS -X POST "${{ secrets.SUPABASE_URL }}/rest/v1/rpc/get_peonie_count" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}'
+
+      - name: Ping Supabase get_rilevatori_count
+        run: |
+          curl -sS -X POST "${{ secrets.SUPABASE_URL }}/rest/v1/rpc/get_rilevatori_count" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}'
