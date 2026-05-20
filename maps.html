@@ -217,6 +217,18 @@
       flex: 0 0 auto;
     }
 
+    .swatch-square {
+      border-radius: 3px;
+    }
+
+    .historic-square-marker {
+      width: 15px;
+      height: 15px;
+      background: #2563eb;
+      border: 2px solid #ffffff;
+      box-shadow: 0 1px 5px rgba(37, 99, 235, 0.45);
+    }
+
     .status {
       margin-top: 10px;
       font-size: 0.82rem;
@@ -694,6 +706,7 @@
           <div class="legend-row"><span class="swatch" style="background:#db2777"></span> 20-29 individui</div>
           <div class="legend-row"><span class="swatch" style="background:#9d174d"></span> Più di 30 individui</div>
           <div class="legend-row"><span class="swatch" style="background:#64748b"></span> dato non indicato</div>
+          <div class="legend-row"><span class="swatch swatch-square" style="background:#2563eb"></span> segnalazioni storiche</div>
         </div>
 
         <div class="status" id="status">Caricamento dati…</div>
@@ -736,24 +749,26 @@
         <button class="table-modal-close" id="tableModalClose" type="button" aria-label="Chiudi tabella">×</button>
       </div>
       <div class="table-toolbar">
-        <input id="tableSearch" type="search" placeholder="Filtra per rilevatore, data, categoria…">
+        <input id="tableSearch" type="search" placeholder="Filtra per tipo, rilevatore, data, periodo, descrizione…">
         <div class="table-count" id="tableCount">0 record</div>
       </div>
       <div class="table-wrap">
         <table class="records-table" id="recordsTable">
           <thead>
             <tr>
+              <th>Tipo</th>
               <th>Rilevatore</th>
               <th>Individui</th>
-              <th>Data</th>
+              <th>Data/periodo</th>
               <th>Lat</th>
               <th>Lon</th>
+              <th>Descrizione</th>
               <th>Foto</th>
               <th>Mappa</th>
             </tr>
           </thead>
           <tbody id="recordsTableBody">
-            <tr><td colspan="7" class="cell-muted">Nessun dato caricato.</td></tr>
+            <tr><td colspan="9" class="cell-muted">Nessun dato caricato.</td></tr>
           </tbody>
         </table>
       </div>
@@ -806,11 +821,13 @@
     const SUPABASE_URL = "https://bvdabdniussqmjjxvrdb.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2ZGFiZG5pdXNzcW1qanh2cmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNjMwMTAsImV4cCI6MjA3NzkzOTAxMH0.pMKdERP0lygqVoYSsEI4eH60BYcXr5QwJNhxf1ZUddM";
     const TABLE = "points";
+    const HISTORIC_TABLE = "segnalazioni_storiche_peonie";
     const NOTES_TABLE = "note_rilevatori";
 
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     let currentSession = null;
     let allPoints = [];
+    let allHistoricPoints = [];
     let allNotes = [];
     const markersById = new Map();
 
@@ -923,8 +940,10 @@
       currentSession = null;
       allPoints = [];
       allNotes = [];
+      allHistoricPoints = [];
       markersById.clear();
       layer.clearLayers();
+      historicLayer.clearLayers();
       renderTable();
       renderNotesTable();
       document.getElementById("totalPoints").textContent = "0";
@@ -942,12 +961,23 @@
       preferCanvas: true
     }).setView([40.15, 9.05], 7);
 
-    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}", {
+    const topoBase = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}", {
       maxZoom: 19,
       attribution: "Tiles &copy; Esri &mdash; Sources: Esri, HERE, Garmin, FAO, NOAA, USGS, &copy; OpenStreetMap contributors, and the GIS User Community"
-    }).addTo(map);
+    });
+    topoBase.addTo(map);
 
     const layer = L.featureGroup().addTo(map);
+    const historicLayer = L.featureGroup().addTo(map);
+
+    L.control.layers(
+      { "Sfondo topografico": topoBase },
+      {
+        "Segnalazioni survey": layer,
+        "Segnalazioni storiche": historicLayer
+      },
+      { collapsed: false }
+    ).addTo(map);
 
     const photoModal = document.getElementById("photoModal");
     const photoModalImg = document.getElementById("photoModalImg");
@@ -1059,6 +1089,30 @@
     }
 
 
+    const historicSquareIcon = L.divIcon({
+      className: "",
+      html: '<div class="historic-square-marker"></div>',
+      iconSize: [15, 15],
+      iconAnchor: [7.5, 7.5],
+      popupAnchor: [0, -8]
+    });
+
+    function makeHistoricPopup(p) {
+      const lat = Number(p.lat);
+      const lon = Number(p.lon);
+      return `
+        <div class="popup-title">Segnalazione storica peonia</div>
+        <div class="popup-row"><strong>Compilatore:</strong> ${escapeHtml(p.compiler || "n.d.")}</div>
+        <div class="popup-row"><strong>Località/descrizione:</strong> ${escapeHtml(p.place_description || "n.d.")}</div>
+        <div class="popup-row"><strong>Itinerario:</strong> ${escapeHtml(p.itinerary || "n.d.")}</div>
+        <div class="popup-row"><strong>Individui stimati:</strong> ${escapeHtml(p.individuals_estimated || "n.d.")}</div>
+        <div class="popup-row"><strong>Periodo osservazione:</strong> ${escapeHtml(p.observation_period || "n.d.")}</div>
+        <div class="popup-row"><strong>Note:</strong> ${escapeHtml(p.notes || "n.d.")}</div>
+        <div class="popup-row"><strong>Coordinate:</strong> ${Number.isFinite(lat) ? lat.toFixed(6) : "n.d."}, ${Number.isFinite(lon) ? lon.toFixed(6) : "n.d."}</div>
+      `;
+    }
+
+
     function openTableModal() {
       tableModal.classList.add("is-visible");
       tableModal.setAttribute("aria-hidden", "false");
@@ -1146,8 +1200,9 @@
       renderNotesTable();
     }
 
-    function getRecordId(p) {
-      return String(p.id ?? `${p.lat}_${p.lon}_${p.created_at ?? ""}`);
+    function getRecordId(p, type = "recent") {
+      const rawId = p.id ?? `${p.lat}_${p.lon}_${p.created_at ?? p.observation_period ?? ""}`;
+      return `${type}:${rawId}`;
     }
 
     function getPhotoCount(p) {
@@ -1157,40 +1212,65 @@
 
     function renderTable() {
       const filter = String(tableSearch.value || "").trim().toLowerCase();
-      const rows = allPoints.filter(p => {
+
+      const recentRows = allPoints.map(p => ({ type: "recent", label: "Recente", data: p }));
+      const historicRows = allHistoricPoints.map(p => ({ type: "historic", label: "Storica", data: p }));
+      const rows = [...recentRows, ...historicRows].filter(row => {
+        const p = row.data;
         if (!filter) return true;
-        const haystack = [
-          p.compiler || p.name || "",
-          p.individuals_estimated || p.land_cover || "",
-          formatDate(p.created_at),
-          p.lat,
-          p.lon
-        ].join(" ").toLowerCase();
+        const haystack = row.type === "historic"
+          ? [
+              row.label,
+              p.compiler || "",
+              p.place_description || "",
+              p.itinerary || "",
+              p.individuals_estimated || "",
+              p.observation_period || "",
+              p.notes || "",
+              p.lat,
+              p.lon
+            ].join(" ").toLowerCase()
+          : [
+              row.label,
+              p.compiler || p.name || "",
+              p.individuals_estimated || p.land_cover || "",
+              formatDate(p.created_at),
+              p.lat,
+              p.lon
+            ].join(" ").toLowerCase();
         return haystack.includes(filter);
       });
 
       tableCount.textContent = `${rows.length} record${rows.length === 1 ? "" : "s"}`;
 
       if (!rows.length) {
-        recordsTableBody.innerHTML = '<tr><td colspan="7" class="cell-muted">Nessuna segnalazione da mostrare.</td></tr>';
+        recordsTableBody.innerHTML = '<tr><td colspan="9" class="cell-muted">Nessuna segnalazione da mostrare.</td></tr>';
         return;
       }
 
-      recordsTableBody.innerHTML = rows.map(p => {
-        const id = escapeHtml(getRecordId(p));
+      recordsTableBody.innerHTML = rows.map(row => {
+        const p = row.data;
+        const id = escapeHtml(getRecordId(p, row.type));
         const lat = Number(p.lat);
         const lon = Number(p.lon);
         const rilevatore = escapeHtml(p.compiler || p.name || "n.d.");
         const individui = escapeHtml(p.individuals_estimated || p.land_cover || "n.d.");
-        const data = escapeHtml(formatDate(p.created_at));
-        const foto = getPhotoCount(p);
+        const data = row.type === "historic"
+          ? escapeHtml(p.observation_period || formatDate(p.created_at))
+          : escapeHtml(formatDate(p.created_at));
+        const descrizione = row.type === "historic"
+          ? escapeHtml(p.place_description || p.itinerary || p.notes || "—")
+          : "—";
+        const foto = row.type === "historic" ? "—" : getPhotoCount(p);
         return `
           <tr>
+            <td>${escapeHtml(row.label)}</td>
             <td>${rilevatore}</td>
             <td>${individui}</td>
             <td>${data}</td>
             <td>${Number.isFinite(lat) ? lat.toFixed(6) : "n.d."}</td>
             <td>${Number.isFinite(lon) ? lon.toFixed(6) : "n.d."}</td>
+            <td>${descrizione}</td>
             <td>${foto ? foto : "—"}</td>
             <td><a href="#" class="mini-link table-zoom-link" data-record-id="${id}">Vai</a></td>
           </tr>
@@ -1199,30 +1279,54 @@
     }
 
     function buildGeoJSON() {
+      const recentFeatures = allPoints.map(p => ({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [Number(p.lon), Number(p.lat)]
+        },
+        properties: {
+          source_table: TABLE,
+          tipo: "recente",
+          id: p.id ?? null,
+          rilevatore: p.compiler || p.name || null,
+          individui_stimati: p.individuals_estimated || p.land_cover || null,
+          data: p.created_at || null,
+          photo_site_url: p.photo_site_url || p.photo_url || null,
+          photo_group_url: p.photo_group_url || null,
+          photo_plant_url: p.photo_plant_url || null,
+          photo_leaf_under_url: p.photo_leaf_under_url || null
+        }
+      }));
+
+      const historicFeatures = allHistoricPoints.map(p => ({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [Number(p.lon), Number(p.lat)]
+        },
+        properties: {
+          source_table: HISTORIC_TABLE,
+          tipo: "storica",
+          id: p.id ?? null,
+          compilatore: p.compiler || null,
+          place_description: p.place_description || null,
+          itinerary: p.itinerary || null,
+          individuals_estimated: p.individuals_estimated || null,
+          observation_period: p.observation_period || null,
+          notes: p.notes || null,
+          data_inserimento: p.created_at || null
+        }
+      }));
+
       return {
         type: "FeatureCollection",
-        name: "segnalazioni_peonie",
+        name: "segnalazioni_peonie_complete",
         crs: {
           type: "name",
           properties: { name: "urn:ogc:def:crs:OGC:1.3:CRS84" }
         },
-        features: allPoints.map(p => ({
-          type: "Feature",
-          geometry: {
-            type: "Point",
-            coordinates: [Number(p.lon), Number(p.lat)]
-          },
-          properties: {
-            id: p.id ?? null,
-            rilevatore: p.compiler || p.name || null,
-            individui_stimati: p.individuals_estimated || p.land_cover || null,
-            data: p.created_at || null,
-            photo_site_url: p.photo_site_url || p.photo_url || null,
-            photo_group_url: p.photo_group_url || null,
-            photo_plant_url: p.photo_plant_url || null,
-            photo_leaf_under_url: p.photo_leaf_under_url || null
-          }
-        }))
+        features: [...recentFeatures, ...historicFeatures]
       };
     }
 
@@ -1231,7 +1335,8 @@
         showLogin();
         return;
       }
-      if (!allPoints.length) {
+      const totalExport = allPoints.length + allHistoricPoints.length;
+      if (!totalExport) {
         setStatus("Nessun dato da esportare. Aggiorna prima la mappa.", true);
         return;
       }
@@ -1242,12 +1347,12 @@
       const a = document.createElement("a");
       const stamp = new Date().toISOString().slice(0, 19).replaceAll(":", "-");
       a.href = url;
-      a.download = `segnalazioni_peonie_${stamp}.geojson`;
+      a.download = `segnalazioni_peonie_complete_${stamp}.geojson`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      setStatus("GeoJSON esportato.");
+      setStatus(`GeoJSON esportato: ${allPoints.length} survey + ${allHistoricPoints.length} storiche.`);
     }
 
 
@@ -1261,7 +1366,7 @@
     }
 
     function buildKML() {
-      const placemarks = allPoints.map(p => {
+      const recentPlacemarks = allPoints.map(p => {
         const lat = Number(p.lat);
         const lon = Number(p.lon);
         const name = p.compiler || p.name || "Segnalazione peonia";
@@ -1275,6 +1380,7 @@
         ].filter(([, url]) => !!url);
 
         const description = [
+          `<p><strong>Tipo:</strong> recente</p>`,
           `<p><strong>Rilevatore:</strong> ${escapeXml(name)}</p>`,
           `<p><strong>Individui stimati:</strong> ${escapeXml(individui)}</p>`,
           `<p><strong>Data:</strong> ${escapeXml(data)}</p>`,
@@ -1287,6 +1393,8 @@
       <name>${escapeXml(name)}</name>
       <description><![CDATA[${description}]]></description>
       <ExtendedData>
+        <Data name="source_table"><value>${escapeXml(TABLE)}</value></Data>
+        <Data name="tipo"><value>recente</value></Data>
         <Data name="id"><value>${escapeXml(p.id ?? "")}</value></Data>
         <Data name="rilevatore"><value>${escapeXml(name)}</value></Data>
         <Data name="individui_stimati"><value>${escapeXml(individui)}</value></Data>
@@ -1300,13 +1408,57 @@
         <coordinates>${lon},${lat},0</coordinates>
       </Point>
     </Placemark>`;
-      }).join("\n");
+      });
+
+      const historicPlacemarks = allHistoricPoints.map(p => {
+        const lat = Number(p.lat);
+        const lon = Number(p.lon);
+        const name = p.compiler || p.place_description || "Segnalazione storica peonia";
+        const description = [
+          `<p><strong>Tipo:</strong> storica</p>`,
+          `<p><strong>Compilatore:</strong> ${escapeXml(p.compiler || "n.d.")}</p>`,
+          `<p><strong>Descrizione luogo:</strong> ${escapeXml(p.place_description || "n.d.")}</p>`,
+          `<p><strong>Itinerario:</strong> ${escapeXml(p.itinerary || "n.d.")}</p>`,
+          `<p><strong>Individui stimati:</strong> ${escapeXml(p.individuals_estimated || "n.d.")}</p>`,
+          `<p><strong>Periodo osservazione:</strong> ${escapeXml(p.observation_period || "n.d.")}</p>`,
+          `<p><strong>Note:</strong> ${escapeXml(p.notes || "n.d.")}</p>`,
+          `<p><strong>Coordinate:</strong> ${lat.toFixed(6)}, ${lon.toFixed(6)}</p>`
+        ].join("");
+
+        return `
+    <Placemark>
+      <name>${escapeXml(name)}</name>
+      <description><![CDATA[${description}]]></description>
+      <Style>
+        <IconStyle>
+          <color>ffff0000</color>
+          <scale>1.1</scale>
+          <Icon><href>http://maps.google.com/mapfiles/kml/shapes/square.png</href></Icon>
+        </IconStyle>
+      </Style>
+      <ExtendedData>
+        <Data name="source_table"><value>${escapeXml(HISTORIC_TABLE)}</value></Data>
+        <Data name="tipo"><value>storica</value></Data>
+        <Data name="id"><value>${escapeXml(p.id ?? "")}</value></Data>
+        <Data name="compiler"><value>${escapeXml(p.compiler || "")}</value></Data>
+        <Data name="place_description"><value>${escapeXml(p.place_description || "")}</value></Data>
+        <Data name="itinerary"><value>${escapeXml(p.itinerary || "")}</value></Data>
+        <Data name="individuals_estimated"><value>${escapeXml(p.individuals_estimated || "")}</value></Data>
+        <Data name="observation_period"><value>${escapeXml(p.observation_period || "")}</value></Data>
+        <Data name="notes"><value>${escapeXml(p.notes || "")}</value></Data>
+        <Data name="data_inserimento"><value>${escapeXml(p.created_at || "")}</value></Data>
+      </ExtendedData>
+      <Point>
+        <coordinates>${lon},${lat},0</coordinates>
+      </Point>
+    </Placemark>`;
+      });
 
       return `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
-    <name>Segnalazioni peonie</name>
-${placemarks}
+    <name>Segnalazioni peonie complete</name>
+${[...recentPlacemarks, ...historicPlacemarks].join("\n")}
   </Document>
 </kml>`;
     }
@@ -1316,7 +1468,8 @@ ${placemarks}
         showLogin();
         return;
       }
-      if (!allPoints.length) {
+      const totalExport = allPoints.length + allHistoricPoints.length;
+      if (!totalExport) {
         setStatus("Nessun dato da esportare. Aggiorna prima la mappa.", true);
         return;
       }
@@ -1327,12 +1480,12 @@ ${placemarks}
       const a = document.createElement("a");
       const stamp = new Date().toISOString().slice(0, 19).replaceAll(":", "-");
       a.href = url;
-      a.download = `segnalazioni_peonie_${stamp}.kml`;
+      a.download = `segnalazioni_peonie_complete_${stamp}.kml`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      setStatus("KML esportato.");
+      setStatus(`KML esportato: ${allPoints.length} survey + ${allHistoricPoints.length} storiche.`);
     }
 
     tableModalClose.addEventListener("click", closeTableModal);
@@ -1390,24 +1543,49 @@ ${placemarks}
 
       setStatus("Caricamento dati…");
       layer.clearLayers();
+      historicLayer.clearLayers();
       markersById.clear();
 
-      const { data, error } = await sb
-        .from(TABLE)
-        .select("id, name, compiler, individuals_estimated, land_cover, lat, lon, created_at, photo_site_url, photo_group_url, photo_plant_url, photo_leaf_under_url, photo_url")
-        .not("lat", "is", null)
-        .not("lon", "is", null)
-        .order("created_at", { ascending: false });
+      const [recentResult, historicResult] = await Promise.all([
+        sb
+          .from(TABLE)
+          .select("id, name, compiler, individuals_estimated, land_cover, lat, lon, created_at, photo_site_url, photo_group_url, photo_plant_url, photo_leaf_under_url, photo_url")
+          .not("lat", "is", null)
+          .not("lon", "is", null)
+          .order("created_at", { ascending: false }),
 
-      if (error) {
-        console.error(error);
+        sb
+          .from(HISTORIC_TABLE)
+          .select("id, compiler, lat, lon, place_description, itinerary, individuals_estimated, observation_period, notes, created_at")
+          .not("lat", "is", null)
+          .not("lon", "is", null)
+          .order("created_at", { ascending: false })
+      ]);
+
+      if (recentResult.error) {
+        console.error(recentResult.error);
         allPoints = [];
         renderTable();
-        setStatus("Errore caricamento dati: " + (error.message || "controlla policy Supabase/RLS"), true);
+        setStatus("Errore caricamento segnalazioni survey: " + (recentResult.error.message || "controlla policy Supabase/RLS"), true);
         return;
       }
 
-      const valid = (data || []).filter(p =>
+      if (historicResult.error) {
+        console.error(historicResult.error);
+        allHistoricPoints = [];
+        setStatus("Segnalazioni survey caricate, ma errore sulle storiche: " + (historicResult.error.message || "controlla policy Supabase/RLS"), true);
+      }
+
+      const valid = (recentResult.data || []).filter(p =>
+        Number.isFinite(Number(p.lat)) &&
+        Number.isFinite(Number(p.lon)) &&
+        Number(p.lat) >= -90 &&
+        Number(p.lat) <= 90 &&
+        Number(p.lon) >= -180 &&
+        Number(p.lon) <= 180
+      );
+
+      const validHistoric = (historicResult.data || []).filter(p =>
         Number.isFinite(Number(p.lat)) &&
         Number.isFinite(Number(p.lon)) &&
         Number(p.lat) >= -90 &&
@@ -1417,6 +1595,7 @@ ${placemarks}
       );
 
       allPoints = valid;
+      allHistoricPoints = validHistoric;
       renderTable();
 
       valid.forEach(p => {
@@ -1433,18 +1612,32 @@ ${placemarks}
 
         marker.bindPopup(makePopup(p));
         marker.addTo(layer);
-        markersById.set(getRecordId(p), marker);
+        markersById.set(getRecordId(p, "recent"), marker);
       });
 
-      document.getElementById("totalPoints").textContent = String(valid.length);
+      validHistoric.forEach(p => {
+        const marker = L.marker([Number(p.lat), Number(p.lon)], {
+          icon: historicSquareIcon
+        });
+
+        marker.bindPopup(makeHistoricPopup(p));
+        marker.addTo(historicLayer);
+        markersById.set(getRecordId(p, "historic"), marker);
+      });
+
+      const total = valid.length + validHistoric.length;
+      document.getElementById("totalPoints").textContent = String(total);
       document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString("it-IT", {
         hour: "2-digit",
         minute: "2-digit"
       });
 
-      if (valid.length > 0) {
-        map.fitBounds(layer.getBounds(), { padding: [30, 30], maxZoom: 15 });
-        setStatus("Dati caricati correttamente.");
+      if (total > 0) {
+        const bounds = L.featureGroup([layer, historicLayer].filter(g => g.getLayers().length > 0)).getBounds();
+        map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
+        if (!historicResult.error) {
+          setStatus(`Dati caricati correttamente: ${valid.length} survey, ${validHistoric.length} storiche.`);
+        }
       } else {
         setStatus("Nessun punto disponibile.");
       }
