@@ -1213,7 +1213,7 @@
     function renderTable() {
       const filter = String(tableSearch.value || "").trim().toLowerCase();
 
-      const recentRows = allPoints.map(p => ({ type: "recent", label: "Recente", data: p }));
+      const recentRows = allPoints.map(p => ({ type: "recent", label: "Survey", data: p }));
       const historicRows = allHistoricPoints.map(p => ({ type: "historic", label: "Storica", data: p }));
       const rows = [...recentRows, ...historicRows].filter(row => {
         const p = row.data;
