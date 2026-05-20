@@ -965,13 +965,22 @@
       maxZoom: 19,
       attribution: "Tiles &copy; Esri &mdash; Sources: Esri, HERE, Garmin, FAO, NOAA, USGS, &copy; OpenStreetMap contributors, and the GIS User Community"
     });
+
+    const satelliteBase = L.tileLayer("https://mt0.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}", {
+      maxZoom: 20,
+      attribution: "Map data &copy; Google"
+    });
+
     topoBase.addTo(map);
 
     const layer = L.featureGroup().addTo(map);
     const historicLayer = L.featureGroup().addTo(map);
 
     L.control.layers(
-      { "Sfondo topografico": topoBase },
+      {
+        "Sfondo topografico": topoBase,
+        "Satellite": satelliteBase
+      },
       {
         "Segnalazioni survey": layer,
         "Segnalazioni storiche": historicLayer
