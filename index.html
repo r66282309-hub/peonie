@@ -841,6 +841,10 @@
             <strong id="peonieCounter">—</strong>
           </span>
           <span class="counter-line">
+            <span>Segnalazioni totali</span>
+            <strong id="peonieTotalCounter">—</strong>
+          </span>
+          <span class="counter-line">
             <span>Persone registrate</span>
             <strong id="rilevatoriCounter">—</strong>
           </span>
@@ -1225,6 +1229,7 @@ quando non necessario.</li>
       }
 
       loadRpcCounter('peonieCounter', 'get_peonie_count');
+      loadRpcCounter('peonieTotalCounter', 'get_peonie_total_count');
       loadRpcCounter('rilevatoriCounter', 'get_rilevatori_count');
     })();
 
