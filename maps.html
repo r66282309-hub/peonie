@@ -229,6 +229,26 @@
       box-shadow: 0 1px 5px rgba(37, 99, 235, 0.45);
     }
 
+    .rilievi-triangle-marker {
+      width: 0;
+      height: 0;
+      border-left: 9px solid transparent;
+      border-right: 9px solid transparent;
+      border-bottom: 16px solid #facc15;
+      filter: drop-shadow(0 1px 4px rgba(120, 53, 15, 0.45));
+    }
+
+    .swatch-triangle {
+      width: 0;
+      height: 0;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-bottom: 14px solid #facc15;
+      border-radius: 0;
+      border-top: 0;
+      flex: 0 0 auto;
+    }
+
     .status {
       margin-top: 10px;
       font-size: 0.82rem;
@@ -707,6 +727,7 @@
           <div class="legend-row"><span class="swatch" style="background:#9d174d"></span> Più di 30 individui</div>
           <div class="legend-row"><span class="swatch" style="background:#64748b"></span> dato non indicato</div>
           <div class="legend-row"><span class="swatch swatch-square" style="background:#2563eb"></span> segnalazioni storiche</div>
+          <div class="legend-row"><span class="swatch-triangle"></span> rilievi/campionamenti</div>
         </div>
 
         <div class="status" id="status">Caricamento dati…</div>
@@ -822,12 +843,14 @@
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2ZGFiZG5pdXNzcW1qanh2cmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNjMwMTAsImV4cCI6MjA3NzkzOTAxMH0.pMKdERP0lygqVoYSsEI4eH60BYcXr5QwJNhxf1ZUddM";
     const TABLE = "points";
     const HISTORIC_TABLE = "segnalazioni_storiche_peonie";
+    const RILIEVI_TABLE = "peonie_rilievi";
     const NOTES_TABLE = "note_rilevatori";
 
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     let currentSession = null;
     let allPoints = [];
     let allHistoricPoints = [];
+    let allRilieviPoints = [];
     let allNotes = [];
     const markersById = new Map();
 
@@ -941,9 +964,11 @@
       allPoints = [];
       allNotes = [];
       allHistoricPoints = [];
+      allRilieviPoints = [];
       markersById.clear();
       layer.clearLayers();
       historicLayer.clearLayers();
+      rilieviLayer.clearLayers();
       renderTable();
       renderNotesTable();
       document.getElementById("totalPoints").textContent = "0";
@@ -975,6 +1000,7 @@
 
     const layer = L.featureGroup().addTo(map);
     const historicLayer = L.featureGroup().addTo(map);
+    const rilieviLayer = L.featureGroup().addTo(map);
 
     L.control.layers(
       {
@@ -983,7 +1009,8 @@
       },
       {
         "Segnalazioni survey": layer,
-        "Segnalazioni storiche": historicLayer
+        "Segnalazioni storiche": historicLayer,
+        "Rilievi/campionamenti": rilieviLayer
       },
       { collapsed: false }
     ).addTo(map);
@@ -1106,6 +1133,28 @@
       popupAnchor: [0, -8]
     });
 
+    const rilieviTriangleIcon = L.divIcon({
+      className: "",
+      html: '<div class="rilievi-triangle-marker"></div>',
+      iconSize: [18, 16],
+      iconAnchor: [9, 16],
+      popupAnchor: [0, -16]
+    });
+
+    function makeRilieviPopup(p) {
+      const lat = Number(p.lat);
+      const lon = Number(p.long);
+      return `
+        <div class="popup-title">Rilievo/campionamento peonia</div>
+        <div class="popup-row"><strong>Specie ipotizzata:</strong> ${escapeHtml(p.specie_ipotizzata || "n.d.")}</div>
+        <div class="popup-row"><strong>Data ritrovamento:</strong> ${escapeHtml(p.data_ritrovamento || "n.d.")}</div>
+        <div class="popup-row"><strong>Stato fenologico:</strong> ${escapeHtml(p.stato_fenologico || "n.d.")}</div>
+        <div class="popup-row"><strong>Densità popolazione:</strong> ${escapeHtml(p.densita_popolazione || "n.d.")}</div>
+        <div class="popup-row"><strong>Campionata:</strong> ${escapeHtml(p.campionata || "n.d.")}</div>
+        <div class="popup-row"><strong>Coordinate:</strong> ${Number.isFinite(lat) ? lat.toFixed(6) : "n.d."}, ${Number.isFinite(lon) ? lon.toFixed(6) : "n.d."}</div>
+      `;
+    }
+
     function makeHistoricPopup(p) {
       const lat = Number(p.lat);
       const lon = Number(p.lon);
@@ -1224,7 +1273,8 @@
 
       const recentRows = allPoints.map(p => ({ type: "recent", label: "Survey", data: p }));
       const historicRows = allHistoricPoints.map(p => ({ type: "historic", label: "Storica", data: p }));
-      const rows = [...recentRows, ...historicRows].filter(row => {
+      const rilieviRows = allRilieviPoints.map(p => ({ type: "rilievo", label: "Rilievo", data: p }));
+      const rows = [...recentRows, ...historicRows, ...rilieviRows].filter(row => {
         const p = row.data;
         if (!filter) return true;
         const haystack = row.type === "historic"
@@ -1239,14 +1289,25 @@
               p.lat,
               p.lon
             ].join(" ").toLowerCase()
-          : [
-              row.label,
-              p.compiler || p.name || "",
-              p.individuals_estimated || p.land_cover || "",
-              formatDate(p.created_at),
-              p.lat,
-              p.lon
-            ].join(" ").toLowerCase();
+          : row.type === "rilievo"
+            ? [
+                row.label,
+                p.specie_ipotizzata || "",
+                p.data_ritrovamento || "",
+                p.stato_fenologico || "",
+                p.densita_popolazione || "",
+                p.campionata || "",
+                p.lat,
+                p.long
+              ].join(" ").toLowerCase()
+            : [
+                row.label,
+                p.compiler || p.name || "",
+                p.individuals_estimated || p.land_cover || "",
+                formatDate(p.created_at),
+                p.lat,
+                p.lon
+              ].join(" ").toLowerCase();
         return haystack.includes(filter);
       });
 
@@ -1261,16 +1322,20 @@
         const p = row.data;
         const id = escapeHtml(getRecordId(p, row.type));
         const lat = Number(p.lat);
-        const lon = Number(p.lon);
-        const rilevatore = escapeHtml(p.compiler || p.name || "n.d.");
-        const individui = escapeHtml(p.individuals_estimated || p.land_cover || "n.d.");
+        const lon = Number(row.type === "rilievo" ? p.long : p.lon);
+        const rilevatore = escapeHtml(row.type === "rilievo" ? (p.specie_ipotizzata || "n.d.") : (p.compiler || p.name || "n.d."));
+        const individui = escapeHtml(row.type === "rilievo" ? (p.densita_popolazione || "n.d.") : (p.individuals_estimated || p.land_cover || "n.d."));
         const data = row.type === "historic"
           ? escapeHtml(p.observation_period || formatDate(p.created_at))
-          : escapeHtml(formatDate(p.created_at));
+          : row.type === "rilievo"
+            ? escapeHtml(p.data_ritrovamento || "n.d.")
+            : escapeHtml(formatDate(p.created_at));
         const descrizione = row.type === "historic"
           ? escapeHtml(p.place_description || p.itinerary || p.notes || "—")
-          : "—";
-        const foto = row.type === "historic" ? "—" : getPhotoCount(p);
+          : row.type === "rilievo"
+            ? escapeHtml([p.stato_fenologico, p.campionata ? `Campionata: ${p.campionata}` : ""].filter(Boolean).join("; ") || "—")
+            : "—";
+        const foto = row.type === "recent" ? getPhotoCount(p) : "—";
         return `
           <tr>
             <td>${escapeHtml(row.label)}</td>
@@ -1328,6 +1393,25 @@
         }
       }));
 
+      const rilieviFeatures = allRilieviPoints.map(p => ({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [Number(p.long), Number(p.lat)]
+        },
+        properties: {
+          source_table: RILIEVI_TABLE,
+          tipo: "rilievo",
+          id: p.id ?? null,
+          fid: p.fid ?? null,
+          specie_ipotizzata: p.specie_ipotizzata || null,
+          data_ritrovamento: p.data_ritrovamento || null,
+          stato_fenologico: p.stato_fenologico || null,
+          densita_popolazione: p.densita_popolazione || null,
+          campionata: p.campionata || null
+        }
+      }));
+
       return {
         type: "FeatureCollection",
         name: "segnalazioni_peonie_complete",
@@ -1335,7 +1419,7 @@
           type: "name",
           properties: { name: "urn:ogc:def:crs:OGC:1.3:CRS84" }
         },
-        features: [...recentFeatures, ...historicFeatures]
+        features: [...recentFeatures, ...historicFeatures, ...rilieviFeatures]
       };
     }
 
@@ -1344,7 +1428,7 @@
         showLogin();
         return;
       }
-      const totalExport = allPoints.length + allHistoricPoints.length;
+      const totalExport = allPoints.length + allHistoricPoints.length + allRilieviPoints.length;
       if (!totalExport) {
         setStatus("Nessun dato da esportare. Aggiorna prima la mappa.", true);
         return;
@@ -1361,7 +1445,7 @@
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      setStatus(`GeoJSON esportato: ${allPoints.length} survey + ${allHistoricPoints.length} storiche.`);
+      setStatus(`GeoJSON esportato: ${allPoints.length} survey + ${allHistoricPoints.length} storiche + ${allRilieviPoints.length} rilievi.`);
     }
 
 
@@ -1463,11 +1547,53 @@
     </Placemark>`;
       });
 
+      const rilieviPlacemarks = allRilieviPoints.map(p => {
+        const lat = Number(p.lat);
+        const lon = Number(p.long);
+        const name = p.specie_ipotizzata || "Rilievo/campionamento peonia";
+        const description = [
+          `<p><strong>Tipo:</strong> rilievo/campionamento</p>`,
+          `<p><strong>Specie ipotizzata:</strong> ${escapeXml(p.specie_ipotizzata || "n.d.")}</p>`,
+          `<p><strong>Data ritrovamento:</strong> ${escapeXml(p.data_ritrovamento || "n.d.")}</p>`,
+          `<p><strong>Stato fenologico:</strong> ${escapeXml(p.stato_fenologico || "n.d.")}</p>`,
+          `<p><strong>Densità popolazione:</strong> ${escapeXml(p.densita_popolazione || "n.d.")}</p>`,
+          `<p><strong>Campionata:</strong> ${escapeXml(p.campionata || "n.d.")}</p>`,
+          `<p><strong>Coordinate:</strong> ${lat.toFixed(6)}, ${lon.toFixed(6)}</p>`
+        ].join("");
+
+        return `
+    <Placemark>
+      <name>${escapeXml(name)}</name>
+      <description><![CDATA[${description}]]></description>
+      <Style>
+        <IconStyle>
+          <color>ff15ccfa</color>
+          <scale>1.1</scale>
+          <Icon><href>http://maps.google.com/mapfiles/kml/shapes/triangle.png</href></Icon>
+        </IconStyle>
+      </Style>
+      <ExtendedData>
+        <Data name="source_table"><value>${escapeXml(RILIEVI_TABLE)}</value></Data>
+        <Data name="tipo"><value>rilievo</value></Data>
+        <Data name="id"><value>${escapeXml(p.id ?? "")}</value></Data>
+        <Data name="fid"><value>${escapeXml(p.fid ?? "")}</value></Data>
+        <Data name="specie_ipotizzata"><value>${escapeXml(p.specie_ipotizzata || "")}</value></Data>
+        <Data name="data_ritrovamento"><value>${escapeXml(p.data_ritrovamento || "")}</value></Data>
+        <Data name="stato_fenologico"><value>${escapeXml(p.stato_fenologico || "")}</value></Data>
+        <Data name="densita_popolazione"><value>${escapeXml(p.densita_popolazione || "")}</value></Data>
+        <Data name="campionata"><value>${escapeXml(p.campionata || "")}</value></Data>
+      </ExtendedData>
+      <Point>
+        <coordinates>${lon},${lat},0</coordinates>
+      </Point>
+    </Placemark>`;
+      });
+
       return `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
     <name>Segnalazioni peonie complete</name>
-${[...recentPlacemarks, ...historicPlacemarks].join("\n")}
+${[...recentPlacemarks, ...historicPlacemarks, ...rilieviPlacemarks].join("\n")}
   </Document>
 </kml>`;
     }
@@ -1477,7 +1603,7 @@ ${[...recentPlacemarks, ...historicPlacemarks].join("\n")}
         showLogin();
         return;
       }
-      const totalExport = allPoints.length + allHistoricPoints.length;
+      const totalExport = allPoints.length + allHistoricPoints.length + allRilieviPoints.length;
       if (!totalExport) {
         setStatus("Nessun dato da esportare. Aggiorna prima la mappa.", true);
         return;
@@ -1494,7 +1620,7 @@ ${[...recentPlacemarks, ...historicPlacemarks].join("\n")}
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      setStatus(`KML esportato: ${allPoints.length} survey + ${allHistoricPoints.length} storiche.`);
+      setStatus(`KML esportato: ${allPoints.length} survey + ${allHistoricPoints.length} storiche + ${allRilieviPoints.length} rilievi.`);
     }
 
     tableModalClose.addEventListener("click", closeTableModal);
@@ -1553,9 +1679,10 @@ ${[...recentPlacemarks, ...historicPlacemarks].join("\n")}
       setStatus("Caricamento dati…");
       layer.clearLayers();
       historicLayer.clearLayers();
+      rilieviLayer.clearLayers();
       markersById.clear();
 
-      const [recentResult, historicResult] = await Promise.all([
+      const [recentResult, historicResult, rilieviResult] = await Promise.all([
         sb
           .from(TABLE)
           .select("id, name, compiler, individuals_estimated, land_cover, lat, lon, created_at, photo_site_url, photo_group_url, photo_plant_url, photo_leaf_under_url, photo_url")
@@ -1568,7 +1695,14 @@ ${[...recentPlacemarks, ...historicPlacemarks].join("\n")}
           .select("id, compiler, lat, lon, place_description, itinerary, individuals_estimated, observation_period, notes, created_at")
           .not("lat", "is", null)
           .not("lon", "is", null)
-          .order("created_at", { ascending: false })
+          .order("created_at", { ascending: false }),
+
+        sb
+          .from(RILIEVI_TABLE)
+          .select("id, fid, specie_ipotizzata, data_ritrovamento, stato_fenologico, densita_popolazione, lat, long, campionata, created_at")
+          .not("lat", "is", null)
+          .not("long", "is", null)
+          .order("data_ritrovamento", { ascending: false })
       ]);
 
       if (recentResult.error) {
@@ -1583,6 +1717,12 @@ ${[...recentPlacemarks, ...historicPlacemarks].join("\n")}
         console.error(historicResult.error);
         allHistoricPoints = [];
         setStatus("Segnalazioni survey caricate, ma errore sulle storiche: " + (historicResult.error.message || "controlla policy Supabase/RLS"), true);
+      }
+
+      if (rilieviResult.error) {
+        console.error(rilieviResult.error);
+        allRilieviPoints = [];
+        setStatus("Segnalazioni caricate, ma errore sui rilievi/campionamenti: " + (rilieviResult.error.message || "controlla policy Supabase/RLS"), true);
       }
 
       const valid = (recentResult.data || []).filter(p =>
@@ -1603,8 +1743,18 @@ ${[...recentPlacemarks, ...historicPlacemarks].join("\n")}
         Number(p.lon) <= 180
       );
 
+      const validRilievi = (rilieviResult.data || []).filter(p =>
+        Number.isFinite(Number(p.lat)) &&
+        Number.isFinite(Number(p.long)) &&
+        Number(p.lat) >= -90 &&
+        Number(p.lat) <= 90 &&
+        Number(p.long) >= -180 &&
+        Number(p.long) <= 180
+      );
+
       allPoints = valid;
       allHistoricPoints = validHistoric;
+      allRilieviPoints = validRilievi;
       renderTable();
 
       valid.forEach(p => {
@@ -1634,7 +1784,17 @@ ${[...recentPlacemarks, ...historicPlacemarks].join("\n")}
         markersById.set(getRecordId(p, "historic"), marker);
       });
 
-      const total = valid.length + validHistoric.length;
+      validRilievi.forEach(p => {
+        const marker = L.marker([Number(p.lat), Number(p.long)], {
+          icon: rilieviTriangleIcon
+        });
+
+        marker.bindPopup(makeRilieviPopup(p));
+        marker.addTo(rilieviLayer);
+        markersById.set(getRecordId(p, "rilievo"), marker);
+      });
+
+      const total = valid.length + validHistoric.length + validRilievi.length;
       document.getElementById("totalPoints").textContent = String(total);
       document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString("it-IT", {
         hour: "2-digit",
@@ -1642,10 +1802,10 @@ ${[...recentPlacemarks, ...historicPlacemarks].join("\n")}
       });
 
       if (total > 0) {
-        const bounds = L.featureGroup([layer, historicLayer].filter(g => g.getLayers().length > 0)).getBounds();
+        const bounds = L.featureGroup([layer, historicLayer, rilieviLayer].filter(g => g.getLayers().length > 0)).getBounds();
         map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
         if (!historicResult.error) {
-          setStatus(`Dati caricati correttamente: ${valid.length} survey, ${validHistoric.length} storiche.`);
+          setStatus(`Dati caricati correttamente: ${valid.length} survey, ${validHistoric.length} storiche, ${validRilievi.length} rilievi.`);
         }
       } else {
         setStatus("Nessun punto disponibile.");
