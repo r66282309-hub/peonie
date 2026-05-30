@@ -9,9 +9,17 @@
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"
+  />
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
   <style>
     :root {
@@ -217,6 +225,10 @@
       flex: 0 0 auto;
     }
 
+    .survey-swatch {
+      border: 2px solid #000000 !important;
+    }
+
     .swatch-square {
       border-radius: 3px;
     }
@@ -229,24 +241,147 @@
       box-shadow: 0 1px 5px rgba(37, 99, 235, 0.45);
     }
 
-    .rilievi-triangle-marker {
-      width: 0;
-      height: 0;
-      border-left: 9px solid transparent;
-      border-right: 9px solid transparent;
-      border-bottom: 16px solid #facc15;
-      filter: drop-shadow(0 1px 4px rgba(69, 81, 249, 0.45));
+    .other-circle-marker {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: #dc2626;
+      border: 2px solid #ffffff;
+      box-shadow: 0 1px 5px rgba(220, 38, 38, 0.45);
     }
 
-    .swatch-triangle {
-      width: 0;
-      height: 0;
-      border-left: 8px solid transparent;
-      border-right: 8px solid transparent;
-      border-bottom: 14px solid #facc15;
-      border-radius: 0;
-      border-top: 0;
+    .legend-heading {
+      color: var(--text);
+      font-weight: 900;
+      margin-top: 4px;
+    }
+
+    .legend-subrow {
+      padding-left: 18px;
+    }
+
+    .measure-tooltip {
+      background: rgba(255, 255, 255, 0.96);
+      color: var(--accent-dark);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 9px;
+      box-shadow: 0 8px 20px rgba(35, 19, 35, 0.16);
+      font-weight: 850;
+      font-size: 0.82rem;
+    }
+
+    .print-selection-label {
+      background: rgba(255, 255, 255, 0.96);
+      color: var(--accent-dark);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 9px;
+      box-shadow: 0 8px 20px rgba(35, 19, 35, 0.16);
+      font-weight: 850;
+      font-size: 0.82rem;
+    }
+
+    .pie-panel {
+      position: absolute;
+      right: 16px;
+      bottom: 16px;
+      width: min(260px, calc(100% - 32px));
+      z-index: 500;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 12px 14px;
+      box-shadow: 0 14px 35px rgba(35, 19, 35, 0.16);
+      backdrop-filter: blur(12px);
+    }
+
+    .pie-panel h3 {
+      font-size: 0.98rem;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    .pie-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .pie-chart {
+      width: 112px;
+      height: 112px;
+      border-radius: 50%;
+      border: 2px solid rgba(35, 19, 35, 0.24);
+      background: conic-gradient(#f9a8d4 0 25%, #f472b6 25% 50%, #db2777 50% 75%, #9d174d 75% 100%);
+      position: relative;
       flex: 0 0 auto;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.55);
+    }
+
+    .pie-chart::after {
+      content: "";
+      position: absolute;
+      inset: 26px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.92);
+      border: 1px solid rgba(241, 217, 230, 0.95);
+    }
+
+    .pie-total {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+    }
+
+    .pie-total strong {
+      position: relative;
+      z-index: 1;
+      display: block;
+      font-size: 1.35rem;
+      color: var(--accent-dark);
+      line-height: 1;
+    }
+
+    .pie-total span {
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .pie-caption {
+      color: var(--muted);
+      font-size: 0.76rem;
+      line-height: 1.35;
+    }
+
+    .pie-legend {
+      display: grid;
+      gap: 5px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .pie-legend-row {
+      display: grid;
+      grid-template-columns: 12px 1fr auto;
+      gap: 7px;
+      align-items: center;
+    }
+
+    .pie-legend-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid #000;
+    }
+
+    .pie-legend-value {
+      font-weight: 800;
+      color: var(--accent-dark);
+      white-space: nowrap;
     }
 
     .status {
@@ -642,6 +777,14 @@
       display: inline-block;
     }
 
+    .leaflet-container.is-measuring {
+      cursor: crosshair;
+    }
+
+    .leaflet-container.is-selecting-print-area {
+      cursor: crosshair;
+    }
+
     @media (max-width: 760px) {
       .page {
         padding: 10px;
@@ -674,6 +817,16 @@
         min-height: 560px;
       }
 
+      .panel,
+      .pie-panel {
+        position: static;
+        width: 100%;
+      }
+
+      .pie-wrap {
+        justify-content: flex-start;
+      }
+
       .panel {
         left: 10px;
         bottom: 10px;
@@ -697,6 +850,10 @@
         <button type="button" id="btnReload" disabled>Aggiorna dati</button>
         <button type="button" id="btnTable" disabled>Segnalazioni</button>
         <button type="button" id="btnNotes" disabled>Utenti iscritti</button>
+        <button type="button" id="btnMeasure" disabled>Misura distanze</button>
+        <button type="button" id="btnPrintPdf" disabled>Layout PDF</button>
+        <button type="button" id="btnCancelPrint" class="is-hidden" disabled>Annulla layout</button>
+        <button type="button" id="btnClearPrint" class="is-hidden" disabled>Cancella riquadro</button>
         <button type="button" id="btnGeojson" disabled>Esporta GeoJSON</button>
         <button type="button" id="btnKml" disabled>Esporta KML</button>
         <button type="button" id="btnLogout" class="is-hidden">Esci</button>
@@ -721,16 +878,33 @@
         </div>
 
         <div class="legend">
-          <div class="legend-row"><span class="swatch" style="background:#f9a8d4"></span> 1-9 individui</div>
-          <div class="legend-row"><span class="swatch" style="background:#f472b6"></span> 10-19 individui</div>
-          <div class="legend-row"><span class="swatch" style="background:#db2777"></span> 20-29 individui</div>
-          <div class="legend-row"><span class="swatch" style="background:#9d174d"></span> Più di 30 individui</div>
-          <div class="legend-row"><span class="swatch" style="background:#64748b"></span> dato non indicato</div>
-          <div class="legend-row"><span class="swatch swatch-square" style="background:#2563eb"></span> segnalazioni storiche</div>
-          <div class="legend-row"><span class="swatch-triangle"></span> rilievi/campionamenti</div>
+          <div class="legend-heading">Segnalazioni Survey</div>
+          <div class="legend-row legend-subrow"><span class="swatch survey-swatch" style="background:#f9a8d4"></span> 1-9 individui</div>
+          <div class="legend-row legend-subrow"><span class="swatch survey-swatch" style="background:#f472b6"></span> 10-19 individui</div>
+          <div class="legend-row legend-subrow"><span class="swatch survey-swatch" style="background:#db2777"></span> 20-29 individui</div>
+          <div class="legend-row legend-subrow"><span class="swatch survey-swatch" style="background:#9d174d"></span> Più di 30 individui</div>
+          <div class="legend-row"><span class="swatch swatch-square" style="background:#2563eb"></span> Segnalazioni storiche</div>
+          <div class="legend-row"><span class="swatch" style="background:#dc2626"></span> Altre segnalazioni</div>
+          <div class="legend-heading">Densità segnalazioni</div>
+          <div class="legend-row legend-subrow"><span class="swatch" style="background:#22c55e"></span> bassa</div>
+          <div class="legend-row legend-subrow"><span class="swatch" style="background:#facc15"></span> media</div>
+          <div class="legend-row legend-subrow"><span class="swatch" style="background:#dc2626"></span> alta</div>
         </div>
 
         <div class="status" id="status">Caricamento dati…</div>
+      </aside>
+
+      <aside class="pie-panel" aria-label="Distribuzione delle segnalazioni survey">
+        <h3>Segnalazioni Survey</h3>
+        <div class="pie-wrap">
+          <div class="pie-chart" id="surveyPieChart" role="img" aria-label="Distribuzione delle segnalazioni survey"></div>
+          <div class="pie-total">
+            <strong id="surveyPieTotal">0</strong>
+            <span>segnalazioni</span>
+            <div class="pie-caption">Distribuzione per numero di individui.</div>
+          </div>
+        </div>
+        <div class="pie-legend" id="surveyPieLegend"></div>
       </aside>
     </section>
   </div>
@@ -853,6 +1027,8 @@
     let allRilieviPoints = [];
     let allNotes = [];
     const markersById = new Map();
+    let heatPointsData = [];
+    const HEATMAP_MAX_ACTIVE_ZOOM = 13;
 
     const authOverlay = document.getElementById("authOverlay");
     const authForm = document.getElementById("authForm");
@@ -865,6 +1041,10 @@
     const btnReload = document.getElementById("btnReload");
     const btnTable = document.getElementById("btnTable");
     const btnNotes = document.getElementById("btnNotes");
+    const btnMeasure = document.getElementById("btnMeasure");
+    const btnPrintPdf = document.getElementById("btnPrintPdf");
+    const btnCancelPrint = document.getElementById("btnCancelPrint");
+    const btnClearPrint = document.getElementById("btnClearPrint");
     const btnGeojson = document.getElementById("btnGeojson");
     const btnKml = document.getElementById("btnKml");
     const tableModal = document.getElementById("tableModal");
@@ -877,6 +1057,74 @@
     const notesSearch = document.getElementById("notesSearch");
     const notesCount = document.getElementById("notesCount");
     const notesTableBody = document.getElementById("notesTableBody");
+    const surveyPieChart = document.getElementById("surveyPieChart");
+    const surveyPieLegend = document.getElementById("surveyPieLegend");
+    const surveyPieTotal = document.getElementById("surveyPieTotal");
+    const surveyPieClasses = [
+      { key: "1-9", label: "1-9 individui", color: "#f9a8d4" },
+      { key: "10-19", label: "10-19 individui", color: "#f472b6" },
+      { key: "20-29", label: "20-29 individui", color: "#db2777" },
+      { key: "più di 30", label: "Più di 30 individui", color: "#9d174d" }
+    ];
+
+    function normalizeSurveyCategory(value) {
+      const v = String(value || "").trim().toLowerCase();
+      if (v === "1-9") return "1-9";
+      if (v === "10-19") return "10-19";
+      if (v === "20-29") return "20-29";
+      if (v === "più di 30" || v === "piu di 30" || v === ">30" || v === "30+") return "più di 30";
+      return null;
+    }
+
+    function updateSurveyPie(points = []) {
+      const counts = Object.fromEntries(surveyPieClasses.map(item => [item.key, 0]));
+      let total = 0;
+
+      points.forEach((p) => {
+        const key = normalizeSurveyCategory(p.individuals_estimated || p.land_cover || "");
+        if (!key) return;
+        counts[key] += 1;
+        total += 1;
+      });
+
+      surveyPieTotal.textContent = String(total);
+
+      if (!total) {
+        surveyPieChart.style.background = 'conic-gradient(#e5e7eb 0 100%)';
+        surveyPieChart.setAttribute('aria-label', 'Nessuna segnalazione survey classificata disponibile');
+        surveyPieLegend.innerHTML = surveyPieClasses.map(item => `
+          <div class="pie-legend-row">
+            <span class="pie-legend-swatch" style="background:${item.color}"></span>
+            <span>${item.label}</span>
+            <span class="pie-legend-value">0</span>
+          </div>
+        `).join('');
+        return;
+      }
+
+      let cursor = 0;
+      const segments = surveyPieClasses.map(item => {
+        const value = counts[item.key];
+        const start = cursor;
+        const end = cursor + (value / total) * 100;
+        cursor = end;
+        return `${item.color} ${start.toFixed(2)}% ${end.toFixed(2)}%`;
+      });
+      surveyPieChart.style.background = `conic-gradient(${segments.join(', ')})`;
+      surveyPieChart.setAttribute('aria-label', surveyPieClasses.map(item => `${item.label}: ${counts[item.key]}`).join(', '));
+
+      surveyPieLegend.innerHTML = surveyPieClasses.map(item => {
+        const value = counts[item.key];
+        const pct = total ? Math.round((value / total) * 100) : 0;
+        return `
+          <div class="pie-legend-row">
+            <span class="pie-legend-swatch" style="background:${item.color}"></span>
+            <span>${item.label}</span>
+            <span class="pie-legend-value">${value} (${pct}%)</span>
+          </div>
+        `;
+      }).join('');
+    }
 
     function setAuthStatus(message, type = "") {
       authStatus.textContent = message || "";
@@ -889,6 +1137,12 @@
       btnReload.disabled = true;
       btnTable.disabled = true;
       btnNotes.disabled = true;
+      btnMeasure.disabled = true;
+      btnPrintPdf.disabled = true;
+      btnCancelPrint.disabled = true;
+      btnClearPrint.disabled = true;
+      btnCancelPrint.classList.add("is-hidden");
+      btnClearPrint.classList.add("is-hidden");
       btnGeojson.disabled = true;
       btnKml.disabled = true;
       setStatus("Accesso riservato: effettua il login per caricare i dati.", true);
@@ -906,6 +1160,10 @@
       btnReload.disabled = !logged;
       btnTable.disabled = !logged;
       btnNotes.disabled = !logged;
+      btnMeasure.disabled = !logged;
+      btnPrintPdf.disabled = !logged;
+      btnCancelPrint.disabled = true;
+      btnClearPrint.disabled = !logged || !printSelectionLayer;
       btnGeojson.disabled = !logged;
       btnKml.disabled = !logged;
       btnLogout.classList.toggle("is-hidden", !logged);
@@ -969,10 +1227,14 @@
       layer.clearLayers();
       historicLayer.clearLayers();
       rilieviLayer.clearLayers();
+      heatPointsData = [];
+      heatLayer.setLatLngs([]);
+      clearPrintSelection(false);
       renderTable();
       renderNotesTable();
       document.getElementById("totalPoints").textContent = "0";
       document.getElementById("lastUpdate").textContent = "—";
+      updateSurveyPie([]);
       updateAuthUI(null);
       showLogin();
     });
@@ -988,19 +1250,45 @@
 
     const topoBase = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}", {
       maxZoom: 19,
+      crossOrigin: true,
       attribution: "Tiles &copy; Esri &mdash; Sources: Esri, HERE, Garmin, FAO, NOAA, USGS, &copy; OpenStreetMap contributors, and the GIS User Community"
     });
 
     const satelliteBase = L.tileLayer("https://mt0.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}", {
       maxZoom: 20,
+      crossOrigin: true,
       attribution: "Map data &copy; Google"
     });
 
     topoBase.addTo(map);
 
-    const layer = L.featureGroup().addTo(map);
     const historicLayer = L.featureGroup().addTo(map);
     const rilieviLayer = L.featureGroup().addTo(map);
+    const layer = L.featureGroup().addTo(map);
+    const heatLayer = L.heatLayer([], {
+      radius: 34,
+      blur: 26,
+      maxZoom: 14,
+      minOpacity: 0.28,
+      gradient: {
+        0.20: "#22c55e",
+        0.50: "#facc15",
+        0.78: "#f97316",
+        1.00: "#dc2626"
+      }
+    });
+
+    function refreshHeatLayerByZoom() {
+      if (!heatLayer) return;
+      const zoom = map.getZoom();
+      if (zoom > HEATMAP_MAX_ACTIVE_ZOOM) {
+        heatLayer.setLatLngs([]);
+        return;
+      }
+      heatLayer.setLatLngs(heatPointsData);
+    }
+
+    map.on("zoomend", refreshHeatLayerByZoom);
 
     L.control.layers(
       {
@@ -1008,9 +1296,10 @@
         "Satellite": satelliteBase
       },
       {
-        "Segnalazioni survey": layer,
+        "Densità segnalazioni": heatLayer,
+        "Segnalazioni Survey": layer,
         "Segnalazioni storiche": historicLayer,
-        "Rilievi/campionamenti": rilieviLayer
+        "Altre segnalazioni": rilieviLayer
       },
       { collapsed: false }
     ).addTo(map);
@@ -1133,19 +1422,19 @@
       popupAnchor: [0, -8]
     });
 
-    const rilieviTriangleIcon = L.divIcon({
+    const otherCircleIcon = L.divIcon({
       className: "",
-      html: '<div class="rilievi-triangle-marker"></div>',
-      iconSize: [18, 16],
-      iconAnchor: [9, 16],
-      popupAnchor: [0, -16]
+      html: '<div class="other-circle-marker"></div>',
+      iconSize: [15, 15],
+      iconAnchor: [7.5, 7.5],
+      popupAnchor: [0, -8]
     });
 
     function makeRilieviPopup(p) {
       const lat = Number(p.lat);
       const lon = Number(p.long);
       return `
-        <div class="popup-title">Rilievo/campionamento peonia</div>
+        <div class="popup-title">Altra segnalazione peonia</div>
         <div class="popup-row"><strong>Specie ipotizzata:</strong> ${escapeHtml(p.specie_ipotizzata || "n.d.")}</div>
         <div class="popup-row"><strong>Data ritrovamento:</strong> ${escapeHtml(p.data_ritrovamento || "n.d.")}</div>
         <div class="popup-row"><strong>Stato fenologico:</strong> ${escapeHtml(p.stato_fenologico || "n.d.")}</div>
@@ -1273,7 +1562,7 @@
 
       const recentRows = allPoints.map(p => ({ type: "recent", label: "Survey", data: p }));
       const historicRows = allHistoricPoints.map(p => ({ type: "historic", label: "Storica", data: p }));
-      const rilieviRows = allRilieviPoints.map(p => ({ type: "rilievo", label: "Rilievo", data: p }));
+      const rilieviRows = allRilieviPoints.map(p => ({ type: "rilievo", label: "Altra segnalazione", data: p }));
       const rows = [...recentRows, ...historicRows, ...rilieviRows].filter(row => {
         const p = row.data;
         if (!filter) return true;
@@ -1401,7 +1690,7 @@
         },
         properties: {
           source_table: RILIEVI_TABLE,
-          tipo: "rilievo",
+          tipo: "altra_segnalazione",
           id: p.id ?? null,
           fid: p.fid ?? null,
           specie_ipotizzata: p.specie_ipotizzata || null,
@@ -1445,7 +1734,7 @@
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      setStatus(`GeoJSON esportato: ${allPoints.length} survey + ${allHistoricPoints.length} storiche + ${allRilieviPoints.length} rilievi.`);
+      setStatus(`GeoJSON esportato: ${allPoints.length} survey + ${allHistoricPoints.length} storiche + ${allRilieviPoints.length} altre segnalazioni.`);
     }
 
 
@@ -1550,9 +1839,9 @@
       const rilieviPlacemarks = allRilieviPoints.map(p => {
         const lat = Number(p.lat);
         const lon = Number(p.long);
-        const name = p.specie_ipotizzata || "Rilievo/campionamento peonia";
+        const name = p.specie_ipotizzata || "Altra segnalazione peonia";
         const description = [
-          `<p><strong>Tipo:</strong> rilievo/campionamento</p>`,
+          `<p><strong>Tipo:</strong> altra segnalazione</p>`,
           `<p><strong>Specie ipotizzata:</strong> ${escapeXml(p.specie_ipotizzata || "n.d.")}</p>`,
           `<p><strong>Data ritrovamento:</strong> ${escapeXml(p.data_ritrovamento || "n.d.")}</p>`,
           `<p><strong>Stato fenologico:</strong> ${escapeXml(p.stato_fenologico || "n.d.")}</p>`,
@@ -1567,14 +1856,14 @@
       <description><![CDATA[${description}]]></description>
       <Style>
         <IconStyle>
-          <color>ff15ccfa</color>
+          <color>ff2626dc</color>
           <scale>1.1</scale>
-          <Icon><href>http://maps.google.com/mapfiles/kml/shapes/triangle.png</href></Icon>
+          <Icon><href>http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon>
         </IconStyle>
       </Style>
       <ExtendedData>
         <Data name="source_table"><value>${escapeXml(RILIEVI_TABLE)}</value></Data>
-        <Data name="tipo"><value>rilievo</value></Data>
+        <Data name="tipo"><value>altra_segnalazione</value></Data>
         <Data name="id"><value>${escapeXml(p.id ?? "")}</value></Data>
         <Data name="fid"><value>${escapeXml(p.fid ?? "")}</value></Data>
         <Data name="specie_ipotizzata"><value>${escapeXml(p.specie_ipotizzata || "")}</value></Data>
@@ -1620,7 +1909,7 @@ ${[...recentPlacemarks, ...historicPlacemarks, ...rilieviPlacemarks].join("\n")}
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      setStatus(`KML esportato: ${allPoints.length} survey + ${allHistoricPoints.length} storiche + ${allRilieviPoints.length} rilievi.`);
+      setStatus(`KML esportato: ${allPoints.length} survey + ${allHistoricPoints.length} storiche + ${allRilieviPoints.length} altre segnalazioni.`);
     }
 
     tableModalClose.addEventListener("click", closeTableModal);
@@ -1651,6 +1940,326 @@ ${[...recentPlacemarks, ...historicPlacemarks, ...rilieviPlacemarks].join("\n")}
       }
     });
 
+
+    const measureLayer = L.featureGroup().addTo(map);
+    let measureActive = false;
+    let measurePoints = [];
+    let measureLine = null;
+    let measureTooltip = null;
+
+    function formatDistance(meters) {
+      if (meters >= 1000) return `${(meters / 1000).toFixed(2)} km`;
+      return `${Math.round(meters)} m`;
+    }
+
+    function totalMeasureDistance(points) {
+      return points.reduce((total, point, index) => {
+        if (index === 0) return 0;
+        return total + points[index - 1].distanceTo(point);
+      }, 0);
+    }
+
+    function resetMeasure() {
+      measureLayer.clearLayers();
+      measurePoints = [];
+      measureLine = null;
+      measureTooltip = null;
+      map.getContainer().classList.remove("is-measuring");
+      measureActive = false;
+      btnMeasure.textContent = "Misura distanze";
+    }
+
+    function updateMeasure() {
+      if (measureLine) measureLayer.removeLayer(measureLine);
+      if (measureTooltip) measureLayer.removeLayer(measureTooltip);
+
+      if (measurePoints.length >= 2) {
+        measureLine = L.polyline(measurePoints, {
+          color: "#db2777",
+          weight: 4,
+          opacity: 0.85,
+          dashArray: "8 8"
+        }).addTo(measureLayer);
+      }
+
+      if (measurePoints.length) {
+        const total = totalMeasureDistance(measurePoints);
+        const last = measurePoints[measurePoints.length - 1];
+        measureTooltip = L.tooltip({
+          permanent: true,
+          direction: "top",
+          className: "measure-tooltip",
+          offset: [0, -12]
+        })
+          .setLatLng(last)
+          .setContent(measurePoints.length === 1 ? "Aggiungi un altro punto" : `Distanza: ${formatDistance(total)}`)
+          .addTo(measureLayer);
+      }
+    }
+
+    function toggleMeasure() {
+      if (!currentSession) {
+        showLogin();
+        return;
+      }
+
+      if (measureActive) {
+        resetMeasure();
+        setStatus("Misurazione distanze disattivata.");
+        return;
+      }
+
+      resetMeasure();
+      measureActive = true;
+      btnMeasure.textContent = "Termina misura";
+      map.getContainer().classList.add("is-measuring");
+      setStatus("Misuratore attivo: clicca sulla mappa per aggiungere punti. Doppio clic o pulsante per terminare e cancellare.");
+    }
+
+    map.on("click", (event) => {
+      if (!measureActive) return;
+      L.circleMarker(event.latlng, {
+        radius: 5,
+        color: "#ffffff",
+        weight: 2,
+        fillColor: "#db2777",
+        fillOpacity: 1
+      }).addTo(measureLayer);
+      measurePoints.push(event.latlng);
+      updateMeasure();
+    });
+
+    map.on("dblclick", () => {
+      if (measureActive) {
+        resetMeasure();
+        setStatus("Misurazione terminata.");
+      }
+    });
+
+    let printSelectionLayer = null;
+    let printDrawer = null;
+    let printSelectionActive = false;
+
+    function updatePrintButtons() {
+      const logged = !!currentSession;
+      btnPrintPdf.disabled = !logged || printSelectionActive;
+      btnCancelPrint.disabled = !logged || !printSelectionActive;
+      btnClearPrint.disabled = !logged || !printSelectionLayer;
+      btnCancelPrint.classList.toggle("is-hidden", !printSelectionActive);
+      btnClearPrint.classList.toggle("is-hidden", !printSelectionLayer);
+      btnPrintPdf.textContent = printSelectionActive ? "Selezione area…" : "Layout PDF";
+    }
+
+    function stopPrintSelection(message = "Selezione layout annullata.") {
+      if (printDrawer) {
+        try {
+          printDrawer.disable();
+        } catch (error) {
+          console.warn(error);
+        }
+        printDrawer = null;
+      }
+
+      printSelectionActive = false;
+      map.getContainer().classList.remove("is-selecting-print-area");
+      map.off(L.Draw.Event.CREATED, handlePrintRectangleCreated);
+      map.off("draw:drawstop", handlePrintDrawStop);
+      updatePrintButtons();
+      if (message) setStatus(message);
+    }
+
+    function clearPrintSelection(showMessage = true) {
+      if (printSelectionLayer) {
+        map.removeLayer(printSelectionLayer);
+        printSelectionLayer = null;
+      }
+      updatePrintButtons();
+      if (showMessage) setStatus("Riquadro layout PDF cancellato.");
+    }
+
+    async function handlePrintRectangleCreated(event) {
+      stopPrintSelection("");
+      clearPrintSelection(false);
+      printSelectionLayer = event.layer.addTo(map);
+      updatePrintButtons();
+
+      try {
+        await makePdfFromBounds(printSelectionLayer.getBounds());
+      } catch (error) {
+        console.error(error);
+        setStatus("Errore durante la creazione del PDF. Verifica la connessione e riprova.", true);
+      }
+    }
+
+    function handlePrintDrawStop() {
+      if (printSelectionActive) {
+        stopPrintSelection("Selezione layout annullata.");
+      }
+    }
+
+    async function exportSelectedAreaPdf() {
+      if (!currentSession) {
+        showLogin();
+        return;
+      }
+
+      if (printSelectionActive) {
+        stopPrintSelection();
+        return;
+      }
+
+      setStatus("Seleziona con il mouse l’area da esportare in PDF. Usa ‘Annulla layout’ per uscire.");
+      printSelectionActive = true;
+      map.getContainer().classList.add("is-selecting-print-area");
+      updatePrintButtons();
+
+      printDrawer = new L.Draw.Rectangle(map, {
+        shapeOptions: {
+          color: "#db2777",
+          weight: 2,
+          fillOpacity: 0.08
+        }
+      });
+
+      map.on(L.Draw.Event.CREATED, handlePrintRectangleCreated);
+      map.on("draw:drawstop", handlePrintDrawStop);
+      printDrawer.enable();
+    }
+
+    function niceScaleBarLength(maxMeters) {
+      if (!Number.isFinite(maxMeters) || maxMeters <= 0) return 100;
+      const exponent = Math.floor(Math.log10(maxMeters));
+      const base = Math.pow(10, exponent);
+      const candidates = [1, 2, 5, 10].map(v => v * base);
+      return candidates.filter(v => v <= maxMeters).pop() || candidates[0];
+    }
+
+    function formatScaleBarLabel(meters) {
+      if (meters >= 1000) return `${(meters / 1000).toLocaleString("it-IT", { maximumFractionDigits: 1 })} km`;
+      return `${Math.round(meters).toLocaleString("it-IT")} m`;
+    }
+
+    function estimateScaleDenominator(mapWidthMm, mapWidthMeters) {
+      if (!Number.isFinite(mapWidthMm) || !Number.isFinite(mapWidthMeters) || mapWidthMm <= 0 || mapWidthMeters <= 0) {
+        return null;
+      }
+      return Math.round((mapWidthMeters * 1000) / mapWidthMm);
+    }
+
+    async function makePdfFromBounds(bounds) {
+      map.closePopup();
+      setStatus("Creazione layout PDF…");
+
+      const oldCenter = map.getCenter();
+      const oldZoom = map.getZoom();
+      const oldSelectionLayer = printSelectionLayer;
+
+      try {
+        if (oldSelectionLayer) {
+          map.removeLayer(oldSelectionLayer);
+          printSelectionLayer = null;
+        }
+
+        map.fitBounds(bounds, { padding: [0, 0], animate: false });
+        await new Promise(resolve => setTimeout(resolve, 900));
+        map.invalidateSize();
+
+        const mapElement = document.getElementById("map");
+        const canvas = await html2canvas(mapElement, {
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+          ignoreElements: element =>
+            element.classList?.contains("leaflet-control-layers") ||
+            element.classList?.contains("leaflet-control-zoom")
+        });
+
+        const imgData = canvas.toDataURL("image/png");
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        const margin = 10;
+        const titleY = margin + 5;
+        const subtitleY = margin + 11;
+        const mapX = margin;
+        const mapY = margin + 17;
+        const mapW = pageW - margin * 2;
+        const reservedBottom = 26;
+        const maxMapH = pageH - mapY - reservedBottom;
+        const mapH = Math.min(maxMapH, mapW * (canvas.height / canvas.width));
+        const mapBottom = mapY + mapH;
+
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(14);
+        pdf.text("Mappa segnalazioni peonie", margin, titleY);
+
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(9);
+        pdf.text(`Layout PDF - ${new Date().toLocaleString("it-IT")}`, margin, subtitleY);
+
+        pdf.addImage(imgData, "PNG", mapX, mapY, mapW, mapH);
+
+        pdf.setDrawColor(0, 0, 0);
+        pdf.setLineWidth(0.25);
+        pdf.rect(mapX, mapY, mapW, mapH);
+
+        const mapBounds = map.getBounds();
+        const centerLat = map.getCenter().lat;
+        const west = L.latLng(centerLat, mapBounds.getWest());
+        const east = L.latLng(centerLat, mapBounds.getEast());
+        const mapWidthMeters = west.distanceTo(east);
+        const scaleDen = estimateScaleDenominator(mapW, mapWidthMeters);
+        const scaleBarMeters = niceScaleBarLength(mapWidthMeters * 0.22);
+        const scaleBarW = (scaleBarMeters / mapWidthMeters) * mapW;
+
+        const scaleX = mapX + 8;
+        const scaleY = mapBottom + 9;
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(9);
+
+        if (scaleDen) {
+          pdf.text(`Scala approssimativa 1:${scaleDen.toLocaleString("it-IT")} se stampato in A4 al 100%`, mapX, mapBottom + 5);
+        } else {
+          pdf.text("Scala approssimativa non calcolabile", mapX, mapBottom + 5);
+        }
+
+        pdf.setLineWidth(0.8);
+        pdf.line(scaleX, scaleY, scaleX + scaleBarW, scaleY);
+        pdf.setLineWidth(0.3);
+        pdf.line(scaleX, scaleY - 2, scaleX, scaleY + 2);
+        pdf.line(scaleX + scaleBarW, scaleY - 2, scaleX + scaleBarW, scaleY + 2);
+        pdf.setFont("helvetica", "bold");
+        pdf.text(formatScaleBarLabel(scaleBarMeters), scaleX, scaleY + 6);
+
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(8);
+        pdf.text("Fonte dati: Peonie Sardegna Survey / Supabase. Sfondo cartografico come visualizzato nella mappa.", margin, pageH - 6);
+
+        const stamp = new Date().toISOString().slice(0, 19).replaceAll(":", "-");
+        pdf.save(`layout_mappa_peonie_${stamp}.pdf`);
+        setStatus("Layout PDF esportato correttamente.");
+      } finally {
+        map.setView(oldCenter, oldZoom, { animate: false });
+        if (oldSelectionLayer) {
+          oldSelectionLayer.addTo(map);
+          printSelectionLayer = oldSelectionLayer;
+        }
+        updatePrintButtons();
+        setTimeout(() => map.invalidateSize(), 150);
+      }
+    }
+
+    btnMeasure.addEventListener("click", toggleMeasure);
+    btnPrintPdf.addEventListener("click", exportSelectedAreaPdf);
+    btnCancelPrint.addEventListener("click", () => stopPrintSelection());
+    btnClearPrint.addEventListener("click", () => clearPrintSelection(true));
+
+    updateSurveyPie([]);
+    updatePrintButtons();
+
     btnTable.addEventListener("click", () => {
       if (!currentSession) {
         showLogin();
@@ -1680,6 +2289,7 @@ ${[...recentPlacemarks, ...historicPlacemarks, ...rilieviPlacemarks].join("\n")}
       layer.clearLayers();
       historicLayer.clearLayers();
       rilieviLayer.clearLayers();
+      heatLayer.setLatLngs([]);
       markersById.clear();
 
       const [recentResult, historicResult, rilieviResult] = await Promise.all([
@@ -1722,7 +2332,7 @@ ${[...recentPlacemarks, ...historicPlacemarks, ...rilieviPlacemarks].join("\n")}
       if (rilieviResult.error) {
         console.error(rilieviResult.error);
         allRilieviPoints = [];
-        setStatus("Segnalazioni caricate, ma errore sui rilievi/campionamenti: " + (rilieviResult.error.message || "controlla policy Supabase/RLS"), true);
+        setStatus("Segnalazioni caricate, ma errore sulle altre segnalazioni: " + (rilieviResult.error.message || "controlla policy Supabase/RLS"), true);
       }
 
       const valid = (recentResult.data || []).filter(p =>
@@ -1756,23 +2366,14 @@ ${[...recentPlacemarks, ...historicPlacemarks, ...rilieviPlacemarks].join("\n")}
       allHistoricPoints = validHistoric;
       allRilieviPoints = validRilievi;
       renderTable();
+      updateSurveyPie(valid);
 
-      valid.forEach(p => {
-        const category = p.individuals_estimated || p.land_cover || "";
-        const color = getColor(category);
-
-        const marker = L.circleMarker([Number(p.lat), Number(p.lon)], {
-          radius: 8,
-          color: "#ffffff",
-          weight: 2,
-          fillColor: color,
-          fillOpacity: 0.9
-        });
-
-        marker.bindPopup(makePopup(p));
-        marker.addTo(layer);
-        markersById.set(getRecordId(p, "recent"), marker);
-      });
+      heatPointsData = [
+        ...valid.map(p => [Number(p.lat), Number(p.lon), 0.85]),
+        ...validHistoric.map(p => [Number(p.lat), Number(p.lon), 0.65]),
+        ...validRilievi.map(p => [Number(p.lat), Number(p.long), 0.75])
+      ];
+      refreshHeatLayerByZoom();
 
       validHistoric.forEach(p => {
         const marker = L.marker([Number(p.lat), Number(p.lon)], {
@@ -1786,13 +2387,33 @@ ${[...recentPlacemarks, ...historicPlacemarks, ...rilieviPlacemarks].join("\n")}
 
       validRilievi.forEach(p => {
         const marker = L.marker([Number(p.lat), Number(p.long)], {
-          icon: rilieviTriangleIcon
+          icon: otherCircleIcon
         });
 
         marker.bindPopup(makeRilieviPopup(p));
         marker.addTo(rilieviLayer);
         markersById.set(getRecordId(p, "rilievo"), marker);
       });
+
+      valid.forEach(p => {
+        const category = p.individuals_estimated || p.land_cover || "";
+        const color = getColor(category);
+
+        const marker = L.circleMarker([Number(p.lat), Number(p.lon)], {
+          radius: 8,
+          color: "#000000",
+          weight: 2,
+          fillColor: color,
+          fillOpacity: 0.95
+        });
+
+        marker.bindPopup(makePopup(p));
+        marker.addTo(layer);
+        marker.bringToFront();
+        markersById.set(getRecordId(p, "recent"), marker);
+      });
+
+      layer.bringToFront();
 
       const total = valid.length + validHistoric.length + validRilievi.length;
       document.getElementById("totalPoints").textContent = String(total);
@@ -1805,7 +2426,7 @@ ${[...recentPlacemarks, ...historicPlacemarks, ...rilieviPlacemarks].join("\n")}
         const bounds = L.featureGroup([layer, historicLayer, rilieviLayer].filter(g => g.getLayers().length > 0)).getBounds();
         map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
         if (!historicResult.error) {
-          setStatus(`Dati caricati correttamente: ${valid.length} survey, ${validHistoric.length} storiche, ${validRilievi.length} rilievi.`);
+          setStatus(`Dati caricati correttamente: ${valid.length} survey, ${validHistoric.length} storiche, ${validRilievi.length} altre segnalazioni.`);
         }
       } else {
         setStatus("Nessun punto disponibile.");
