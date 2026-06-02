@@ -25,7 +25,7 @@ I dati raccolti possono essere utilizzati per finalità scientifiche, conoscitiv
 
 ## Enti e supporto
 
-Il portale è sviluppato a supporto delle attività di censimento e monitoraggio della peonia selvatica in Sardegna, nell’ambito del progetto [![Post Facebook](images/facebook-post.jpg)](https://www.facebook.com/AgrisSardegna/posts/pfbid0PZSvQs8z4UoC38FLAgy5rJCarFfkK3vscrYQDFp2qAAg1XVDJgv2KXAXQKrgEZdtl)
+Il portale è sviluppato a supporto delle attività di censimento e monitoraggio della peonia selvatica in Sardegna, nell’ambito del progetto [![Peonie](images/facebook-post.jpg)](https://www.facebook.com/AgrisSardegna/posts/pfbid0PZSvQs8z4UoC38FLAgy5rJCarFfkK3vscrYQDFp2qAAg1XVDJgv2KXAXQKrgEZdtl)
 
 Il portale include i loghi della **Regione Autonoma della Sardegna** e di **AGRIS Sardegna Agricoltura** in relazione al contesto istituzionale, al supporto o alla fornitura del servizio nell’ambito delle attività di censimento e monitoraggio della peonia selvatica in Sardegna.
 
