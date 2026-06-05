@@ -217,6 +217,26 @@
       border: 1px solid rgba(255,255,255,.22);
     }
 
+
+    .home-link {
+      position: fixed;
+      left: clamp(12px, 2vw, 24px);
+      bottom: clamp(12px, 2vw, 24px);
+      z-index: 100;
+      min-height: 46px;
+      padding: 0 16px;
+      color: var(--text);
+      background: rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.24);
+      box-shadow: 0 16px 34px rgba(0,0,0,.22);
+      backdrop-filter: blur(16px);
+    }
+
+    .home-link:hover {
+      background: rgba(255,255,255,.20);
+      box-shadow: 0 20px 42px rgba(0,0,0,.28);
+    }
+
     .quick-stats {
       display: grid;
       grid-template-columns: repeat(4, minmax(132px, 1fr));
@@ -465,10 +485,12 @@
       .main-grid { gap: 12px; }
       .game-frame { aspect-ratio: auto; min-height: 650px; border-radius: 25px; }
       .end-actions button, .end-actions .link-btn, .player-row button, .player-row .link-btn { width: 100%; }
+      .home-link { left: 10px; bottom: 10px; min-height: 42px; padding: 0 13px; font-size: .9rem; }
     }
   </style>
 </head>
 <body>
+<a class="link-btn home-link" href="index.html" aria-label="Torna alla pagina principale">← Home</a>
   <main class="app">
     <section class="topbar" aria-label="Intestazione gioco">
       <div class="brand">
