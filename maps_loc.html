@@ -1,0 +1,2458 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mappa segnalazioni peonie</title>
+  <!-- Leaflet, Leaflet Draw e Leaflet.heat sono caricati da /libs locali. Vedi README_GITHUB.md. -->
+
+  <link
+    rel="stylesheet"
+    href="libs/leaflet/leaflet.css"
+  />
+  <link
+    rel="stylesheet"
+    href="libs/leaflet-draw/leaflet.draw.css"
+  />
+
+  <script src="libs/leaflet/leaflet.js"></script>
+  <script src="libs/leaflet-draw/leaflet.draw.js"></script>
+  <script src="libs/leaflet-heat/leaflet-heat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #fff7fb;
+      --surface: #ffffff;
+      --surface-soft: #fdf2f8;
+      --text: #231323;
+      --muted: #6b5c68;
+      --line: #f1d9e6;
+      --accent: #db2777;
+      --accent-dark: #9d174d;
+      --accent-soft: #fce7f3;
+      --shadow: 0 18px 45px rgba(157, 23, 77, 0.16);
+      --radius: 22px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(244, 114, 182, 0.24), transparent 22rem),
+        radial-gradient(circle at 88% 18%, rgba(190, 242, 100, 0.18), transparent 20rem),
+        linear-gradient(180deg, #fffafd 0%, var(--bg) 58%, #ffffff 100%);
+      color: var(--text);
+    }
+
+    .page {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 14px;
+      padding: 16px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+      z-index: 10;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(252, 231, 243, 0.88);
+      color: var(--accent-dark);
+      border: 1px solid rgba(219, 39, 119, 0.16);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), #f472b6);
+    }
+
+    h1 {
+      font-size: clamp(1.35rem, 4vw, 2rem);
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.92rem;
+      margin-top: 4px;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    button, .link-button {
+      appearance: none;
+      border: 0;
+      text-decoration: none;
+      cursor: pointer;
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-weight: 800;
+      font-size: 0.9rem;
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+      border: 1px solid rgba(219, 39, 119, 0.18);
+    }
+
+    button:hover, .link-button:hover {
+      background: #fbcfe8;
+    }
+
+    .map-shell {
+      position: relative;
+      min-height: 520px;
+      overflow: hidden;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      background: var(--surface);
+    }
+
+    #map {
+      width: 100%;
+      height: calc(100vh - 145px);
+      min-height: 520px;
+      z-index: 1;
+      background: #e5e7eb;
+    }
+
+    .panel {
+      position: absolute;
+      left: 16px;
+      bottom: 16px;
+      width: min(360px, calc(100% - 32px));
+      z-index: 500;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: 0 14px 35px rgba(35, 19, 35, 0.16);
+      backdrop-filter: blur(12px);
+    }
+
+    .panel h2 {
+      font-size: 1rem;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .stat {
+      background: var(--surface-soft);
+      border: 1px solid rgba(219, 39, 119, 0.12);
+      border-radius: 14px;
+      padding: 8px 10px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 1.15rem;
+      color: var(--accent-dark);
+    }
+
+    .stat span {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .legend {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid rgba(35, 19, 35, 0.18);
+      flex: 0 0 auto;
+    }
+
+    .survey-swatch {
+      border: 2px solid #000000 !important;
+    }
+
+    .swatch-square {
+      border-radius: 3px;
+    }
+
+    .historic-square-marker {
+      width: 15px;
+      height: 15px;
+      background: #2563eb;
+      border: 2px solid #ffffff;
+      box-shadow: 0 1px 5px rgba(37, 99, 235, 0.45);
+    }
+
+    .other-circle-marker {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: #dc2626;
+      border: 2px solid #ffffff;
+      box-shadow: 0 1px 5px rgba(220, 38, 38, 0.45);
+    }
+
+    .legend-heading {
+      color: var(--text);
+      font-weight: 900;
+      margin-top: 4px;
+    }
+
+    .legend-subrow {
+      padding-left: 18px;
+    }
+
+    .measure-tooltip {
+      background: rgba(255, 255, 255, 0.96);
+      color: var(--accent-dark);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 9px;
+      box-shadow: 0 8px 20px rgba(35, 19, 35, 0.16);
+      font-weight: 850;
+      font-size: 0.82rem;
+    }
+
+    .print-selection-label {
+      background: rgba(255, 255, 255, 0.96);
+      color: var(--accent-dark);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 9px;
+      box-shadow: 0 8px 20px rgba(35, 19, 35, 0.16);
+      font-weight: 850;
+      font-size: 0.82rem;
+    }
+
+    .pie-panel {
+      position: absolute;
+      right: 16px;
+      bottom: 16px;
+      width: min(260px, calc(100% - 32px));
+      z-index: 500;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 12px 14px;
+      box-shadow: 0 14px 35px rgba(35, 19, 35, 0.16);
+      backdrop-filter: blur(12px);
+    }
+
+    .pie-panel h3 {
+      font-size: 0.98rem;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    .pie-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .pie-chart {
+      width: 112px;
+      height: 112px;
+      border-radius: 50%;
+      border: 2px solid rgba(35, 19, 35, 0.24);
+      background: conic-gradient(#f9a8d4 0 25%, #f472b6 25% 50%, #db2777 50% 75%, #9d174d 75% 100%);
+      position: relative;
+      flex: 0 0 auto;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.55);
+    }
+
+    .pie-chart::after {
+      content: "";
+      position: absolute;
+      inset: 26px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.92);
+      border: 1px solid rgba(241, 217, 230, 0.95);
+    }
+
+    .pie-total {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+    }
+
+    .pie-total strong {
+      position: relative;
+      z-index: 1;
+      display: block;
+      font-size: 1.35rem;
+      color: var(--accent-dark);
+      line-height: 1;
+    }
+
+    .pie-total span {
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .pie-caption {
+      color: var(--muted);
+      font-size: 0.76rem;
+      line-height: 1.35;
+    }
+
+    .pie-legend {
+      display: grid;
+      gap: 5px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .pie-legend-row {
+      display: grid;
+      grid-template-columns: 12px 1fr auto;
+      gap: 7px;
+      align-items: center;
+    }
+
+    .pie-legend-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid #000;
+    }
+
+    .pie-legend-value {
+      font-weight: 800;
+      color: var(--accent-dark);
+      white-space: nowrap;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .error {
+      color: #b91c1c;
+      font-weight: 700;
+    }
+
+    .leaflet-popup-content {
+      margin: 12px 14px;
+      min-width: 220px;
+    }
+
+    .popup-title {
+      font-weight: 900;
+      color: var(--accent-dark);
+      margin-bottom: 6px;
+      font-size: 1rem;
+    }
+
+    .popup-row {
+      margin: 3px 0;
+      color: #3f3340;
+      font-size: 0.9rem;
+    }
+
+    .popup-row strong {
+      color: #231323;
+    }
+
+    .popup-photos {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .popup-photos a {
+      display: block;
+      text-decoration: none;
+      color: var(--accent-dark);
+      background: var(--accent-soft);
+      border-radius: 10px;
+      padding: 6px 7px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-align: center;
+    }
+
+
+    .photo-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 4000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 22px;
+      background: rgba(35, 19, 35, 0.72);
+      backdrop-filter: blur(8px);
+    }
+
+    .photo-modal.is-visible {
+      display: flex;
+    }
+
+    .photo-modal-content {
+      position: relative;
+      width: min(980px, 96vw);
+      max-height: 92vh;
+      background: #ffffff;
+      border-radius: 22px;
+      overflow: hidden;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(241, 217, 230, 0.9);
+    }
+
+    .photo-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      background: #fdf2f8;
+      border-bottom: 1px solid #f1d9e6;
+    }
+
+    .photo-modal-title {
+      color: #9d174d;
+      font-weight: 900;
+      font-size: 0.95rem;
+    }
+
+    .photo-modal-close {
+      appearance: none;
+      border: 0;
+      cursor: pointer;
+      width: 36px;
+      height: 36px;
+      border-radius: 999px;
+      background: #fce7f3;
+      color: #9d174d;
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .photo-modal-close:hover {
+      background: #fbcfe8;
+    }
+
+    .photo-modal img {
+      display: block;
+      width: 100%;
+      max-height: calc(92vh - 62px);
+      object-fit: contain;
+      background: #111827;
+    }
+
+
+
+    .auth-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 3500;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(35, 19, 35, 0.46);
+      backdrop-filter: blur(9px);
+    }
+
+    .auth-overlay.is-visible {
+      display: flex;
+    }
+
+    .auth-modal {
+      width: min(100%, 440px);
+      background: rgba(255, 255, 255, 0.98);
+      border: 1px solid rgba(219, 39, 119, 0.20);
+      border-radius: 28px;
+      box-shadow: 0 30px 90px rgba(80, 24, 57, 0.30);
+      padding: 26px;
+    }
+
+    .auth-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 11px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+      font-size: 0.78rem;
+      font-weight: 850;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .auth-modal h2 {
+      font-size: 1.55rem;
+      margin-bottom: 8px;
+      letter-spacing: -0.03em;
+    }
+
+    .auth-modal p {
+      color: var(--muted);
+      font-size: 0.94rem;
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+
+    .auth-form {
+      display: grid;
+      gap: 12px;
+    }
+
+    .auth-field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .auth-field label {
+      color: var(--text);
+      font-size: 0.9rem;
+      font-weight: 800;
+    }
+
+    .auth-field input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      padding: 12px 13px;
+      font: inherit;
+      color: var(--text);
+      background: #fff;
+      outline: none;
+    }
+
+    .auth-field input:focus {
+      border-color: rgba(219, 39, 119, 0.55);
+      box-shadow: 0 0 0 4px rgba(219, 39, 119, 0.10);
+    }
+
+    .auth-submit {
+      width: 100%;
+      margin-top: 4px;
+      background: linear-gradient(135deg, var(--accent), #f472b6);
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(219, 39, 119, 0.20);
+    }
+
+    .auth-submit:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .auth-status {
+      min-height: 20px;
+      font-size: 0.86rem;
+      font-weight: 750;
+      color: var(--muted);
+    }
+
+    .auth-status.error {
+      color: #b91c1c;
+    }
+
+    .auth-status.success {
+      color: #166534;
+    }
+
+    .auth-user {
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 750;
+      max-width: 210px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .is-hidden {
+      display: none !important;
+    }
+
+
+
+    .table-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 3600;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 22px;
+      background: rgba(35, 19, 35, 0.58);
+      backdrop-filter: blur(8px);
+    }
+
+    .table-modal.is-visible {
+      display: flex;
+    }
+
+    .table-modal-content {
+      width: min(1180px, 96vw);
+      max-height: 90vh;
+      background: rgba(255, 255, 255, 0.98);
+      border: 1px solid rgba(219, 39, 119, 0.20);
+      border-radius: 24px;
+      box-shadow: 0 30px 90px rgba(80, 24, 57, 0.32);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+    }
+
+    .table-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      background: #fdf2f8;
+      border-bottom: 1px solid #f1d9e6;
+    }
+
+    .table-modal-title {
+      color: var(--accent-dark);
+      font-weight: 900;
+      font-size: 1rem;
+    }
+
+    .table-modal-close {
+      appearance: none;
+      border: 0;
+      cursor: pointer;
+      width: 36px;
+      height: 36px;
+      border-radius: 999px;
+      background: #fce7f3;
+      color: #9d174d;
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .table-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 12px 16px;
+      border-bottom: 1px solid #f1d9e6;
+    }
+
+    .table-toolbar input {
+      flex: 1 1 260px;
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 10px 13px;
+      font: inherit;
+      outline: none;
+    }
+
+    .table-toolbar input:focus {
+      border-color: rgba(219, 39, 119, 0.55);
+      box-shadow: 0 0 0 4px rgba(219, 39, 119, 0.10);
+    }
+
+    .table-count {
+      color: var(--muted);
+      font-size: 0.86rem;
+      font-weight: 800;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      max-height: calc(90vh - 125px);
+    }
+
+    .records-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+    }
+
+    .records-table th,
+    .records-table td {
+      border-bottom: 1px solid #f1d9e6;
+      padding: 9px 10px;
+      text-align: left;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+
+    .records-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #fff7fb;
+      color: var(--accent-dark);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .records-table tr:hover td {
+      background: #fff7fb;
+    }
+
+    .records-table .cell-muted {
+      color: var(--muted);
+    }
+
+    .mini-link {
+      color: var(--accent-dark);
+      font-weight: 850;
+      text-decoration: none;
+      background: var(--accent-soft);
+      border-radius: 999px;
+      padding: 4px 8px;
+      display: inline-block;
+    }
+
+    .leaflet-container.is-measuring {
+      cursor: crosshair;
+    }
+
+    .leaflet-container.is-selecting-print-area {
+      cursor: crosshair;
+    }
+
+    @media (max-width: 760px) {
+      .page {
+        padding: 10px;
+        gap: 10px;
+      }
+
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+        border-radius: 18px;
+        padding: 14px;
+      }
+
+      .actions {
+        width: 100%;
+        justify-content: stretch;
+      }
+
+      button, .link-button {
+        flex: 1;
+        text-align: center;
+      }
+
+      .map-shell {
+        border-radius: 18px;
+      }
+
+      #map {
+        height: calc(100vh - 190px);
+        min-height: 560px;
+      }
+
+      .panel,
+      .pie-panel {
+        position: static;
+        width: 100%;
+      }
+
+      .pie-wrap {
+        justify-content: flex-start;
+      }
+
+      .panel {
+        left: 10px;
+        bottom: 10px;
+        width: calc(100% - 20px);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <header>
+      <div class="title-block">
+        <div class="badge"><span class="dot"></span> Peonia survey</div>
+        <h1>Mappa segnalazioni peonie</h1>
+      </div>
+
+      <div class="actions">
+        <span class="auth-user is-hidden" id="authUser"></span>
+        <a class="link-button" href="index.html">Home</a>
+        <button type="button" id="btnReload" disabled>Aggiorna dati</button>
+        <button type="button" id="btnTable" disabled>Segnalazioni</button>
+        <button type="button" id="btnNotes" disabled>Utenti iscritti</button>
+        <button type="button" id="btnMeasure" disabled>Misura distanze</button>
+        <button type="button" id="btnPrintPdf" disabled>Layout PDF</button>
+        <button type="button" id="btnCancelPrint" class="is-hidden" disabled>Annulla layout</button>
+        <button type="button" id="btnClearPrint" class="is-hidden" disabled>Cancella riquadro</button>
+        <button type="button" id="btnGeojson" disabled>Esporta GeoJSON</button>
+        <button type="button" id="btnKml" disabled>Esporta KML</button>
+        <button type="button" id="btnLogout" class="is-hidden">Esci</button>
+      </div>
+    </header>
+
+    <section class="map-shell" aria-label="Mappa delle segnalazioni">
+      <div id="map"></div>
+
+      <aside class="panel" aria-label="Indice delle segnalazioni">
+        <h2>Indice segnalazioni</h2>
+
+        <div class="stats">
+          <div class="stat">
+            <strong id="totalPoints">0</strong>
+            <span>punti totali</span>
+          </div>
+          <div class="stat">
+            <strong id="lastUpdate">—</strong>
+            <span>ultimo aggiornamento</span>
+          </div>
+        </div>
+
+        <div class="legend">
+          <div class="legend-heading">Segnalazioni Survey</div>
+          <div class="legend-row legend-subrow"><span class="swatch survey-swatch" style="background:#f9a8d4"></span> 1-9 individui</div>
+          <div class="legend-row legend-subrow"><span class="swatch survey-swatch" style="background:#f472b6"></span> 10-19 individui</div>
+          <div class="legend-row legend-subrow"><span class="swatch survey-swatch" style="background:#db2777"></span> 20-29 individui</div>
+          <div class="legend-row legend-subrow"><span class="swatch survey-swatch" style="background:#9d174d"></span> Più di 30 individui</div>
+          <div class="legend-row"><span class="swatch swatch-square" style="background:#2563eb"></span> Segnalazioni storiche</div>
+          <div class="legend-row"><span class="swatch" style="background:#dc2626"></span> Altre segnalazioni</div>
+          <div class="legend-heading">Densità segnalazioni</div>
+          <div class="legend-row legend-subrow"><span class="swatch" style="background:#22c55e"></span> bassa</div>
+          <div class="legend-row legend-subrow"><span class="swatch" style="background:#facc15"></span> media</div>
+          <div class="legend-row legend-subrow"><span class="swatch" style="background:#dc2626"></span> alta</div>
+        </div>
+
+        <div class="status" id="status">Caricamento dati…</div>
+      </aside>
+
+      <aside class="pie-panel" aria-label="Distribuzione delle segnalazioni survey">
+        <h3>Segnalazioni Survey</h3>
+        <div class="pie-wrap">
+          <div class="pie-chart" id="surveyPieChart" role="img" aria-label="Distribuzione delle segnalazioni survey"></div>
+          <div class="pie-total">
+            <strong id="surveyPieTotal">0</strong>
+            <span>segnalazioni</span>
+            <div class="pie-caption">Distribuzione per numero di individui.</div>
+          </div>
+        </div>
+        <div class="pie-legend" id="surveyPieLegend"></div>
+      </aside>
+    </section>
+  </div>
+
+
+  <div class="auth-overlay" id="authOverlay" aria-hidden="true">
+    <div class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+      <div class="auth-kicker"><span class="dot"></span> Area riservata</div>
+      <h2 id="authTitle">Accesso alla mappa</h2>
+      <p>
+        Accesso riservato agli amministratori. Inserisci le credenziali abilitate.
+      </p>
+
+      <form class="auth-form" id="authForm">
+        <div class="auth-field">
+          <label for="authEmail">Email utente</label>
+          <input id="authEmail" type="email" autocomplete="username" required placeholder="nome@email.it">
+        </div>
+
+        <div class="auth-field">
+          <label for="authPassword">Password</label>
+          <input id="authPassword" type="password" autocomplete="current-password" required placeholder="Password">
+        </div>
+
+        <div class="auth-status" id="authStatus" role="status" aria-live="polite"></div>
+        <button class="auth-submit" id="authSubmit" type="submit">Accedi alla mappa</button>
+      </form>
+    </div>
+  </div>
+
+
+
+  <div class="table-modal" id="tableModal" aria-hidden="true">
+    <div class="table-modal-content" role="dialog" aria-modal="true" aria-labelledby="tableModalTitle">
+      <div class="table-modal-header">
+        <div class="table-modal-title" id="tableModalTitle">Segnalazioni</div>
+        <button class="table-modal-close" id="tableModalClose" type="button" aria-label="Chiudi tabella">×</button>
+      </div>
+      <div class="table-toolbar">
+        <input id="tableSearch" type="search" placeholder="Filtra per tipo, rilevatore, data, periodo, descrizione…">
+        <div class="table-count" id="tableCount">0 record</div>
+      </div>
+      <div class="table-wrap">
+        <table class="records-table" id="recordsTable">
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Rilevatore</th>
+              <th>Individui</th>
+              <th>Data/periodo</th>
+              <th>Lat</th>
+              <th>Lon</th>
+              <th>Descrizione</th>
+              <th>Foto</th>
+              <th>Mappa</th>
+            </tr>
+          </thead>
+          <tbody id="recordsTableBody">
+            <tr><td colspan="9" class="cell-muted">Nessun dato caricato.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+
+
+  <div class="table-modal" id="notesModal" aria-hidden="true">
+    <div class="table-modal-content" role="dialog" aria-modal="true" aria-labelledby="notesModalTitle">
+      <div class="table-modal-header">
+        <div class="table-modal-title" id="notesModalTitle">Utenti iscritti</div>
+        <button class="table-modal-close" id="notesModalClose" type="button" aria-label="Chiudi note rilevatori">×</button>
+      </div>
+      <div class="table-toolbar">
+        <input id="notesSearch" type="search" placeholder="Filtra per nome, email, data…">
+        <div class="table-count" id="notesCount">0 record</div>
+      </div>
+      <div class="table-wrap">
+        <table class="records-table" id="notesTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Data</th>
+              <th>Nome e cognome</th>
+              <th>Email</th>
+              <th>Menzione contributore</th>
+              <th>Consenso</th>
+            </tr>
+          </thead>
+          <tbody id="notesTableBody">
+            <tr><td colspan="6" class="cell-muted">Nessun dato caricato.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="photo-modal" id="photoModal" aria-hidden="true">
+    <div class="photo-modal-content" role="dialog" aria-modal="true" aria-label="Anteprima foto">
+      <div class="photo-modal-header">
+        <div class="photo-modal-title" id="photoModalTitle">Foto segnalazione</div>
+        <button class="photo-modal-close" id="photoModalClose" type="button" aria-label="Chiudi foto">×</button>
+      </div>
+      <img id="photoModalImg" src="" alt="Foto segnalazione">
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://bvdabdniussqmjjxvrdb.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2ZGFiZG5pdXNzcW1qanh2cmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNjMwMTAsImV4cCI6MjA3NzkzOTAxMH0.pMKdERP0lygqVoYSsEI4eH60BYcXr5QwJNhxf1ZUddM";
+    const TABLE = "points";
+    const HISTORIC_TABLE = "segnalazioni_storiche_peonie";
+    const RILIEVI_TABLE = "peonie_rilievi";
+    const NOTES_TABLE = "note_rilevatori";
+
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let currentSession = null;
+    let allPoints = [];
+    let allHistoricPoints = [];
+    let allRilieviPoints = [];
+    let allNotes = [];
+    const markersById = new Map();
+    let heatPointsData = [];
+    const HEATMAP_MAX_ACTIVE_ZOOM = 13;
+
+    const authOverlay = document.getElementById("authOverlay");
+    const authForm = document.getElementById("authForm");
+    const authEmail = document.getElementById("authEmail");
+    const authPassword = document.getElementById("authPassword");
+    const authSubmit = document.getElementById("authSubmit");
+    const authStatus = document.getElementById("authStatus");
+    const authUser = document.getElementById("authUser");
+    const btnLogout = document.getElementById("btnLogout");
+    const btnReload = document.getElementById("btnReload");
+    const btnTable = document.getElementById("btnTable");
+    const btnNotes = document.getElementById("btnNotes");
+    const btnMeasure = document.getElementById("btnMeasure");
+    const btnPrintPdf = document.getElementById("btnPrintPdf");
+    const btnCancelPrint = document.getElementById("btnCancelPrint");
+    const btnClearPrint = document.getElementById("btnClearPrint");
+    const btnGeojson = document.getElementById("btnGeojson");
+    const btnKml = document.getElementById("btnKml");
+    const tableModal = document.getElementById("tableModal");
+    const tableModalClose = document.getElementById("tableModalClose");
+    const tableSearch = document.getElementById("tableSearch");
+    const tableCount = document.getElementById("tableCount");
+    const recordsTableBody = document.getElementById("recordsTableBody");
+    const notesModal = document.getElementById("notesModal");
+    const notesModalClose = document.getElementById("notesModalClose");
+    const notesSearch = document.getElementById("notesSearch");
+    const notesCount = document.getElementById("notesCount");
+    const notesTableBody = document.getElementById("notesTableBody");
+    const surveyPieChart = document.getElementById("surveyPieChart");
+    const surveyPieLegend = document.getElementById("surveyPieLegend");
+    const surveyPieTotal = document.getElementById("surveyPieTotal");
+    const surveyPieClasses = [
+      { key: "1-9", label: "1-9 individui", color: "#f9a8d4" },
+      { key: "10-19", label: "10-19 individui", color: "#f472b6" },
+      { key: "20-29", label: "20-29 individui", color: "#db2777" },
+      { key: "più di 30", label: "Più di 30 individui", color: "#9d174d" }
+    ];
+
+    function normalizeSurveyCategory(value) {
+      const v = String(value || "").trim().toLowerCase();
+      if (v === "1-9") return "1-9";
+      if (v === "10-19") return "10-19";
+      if (v === "20-29") return "20-29";
+      if (v === "più di 30" || v === "piu di 30" || v === ">30" || v === "30+") return "più di 30";
+      return null;
+    }
+
+    function updateSurveyPie(points = []) {
+      const counts = Object.fromEntries(surveyPieClasses.map(item => [item.key, 0]));
+      let total = 0;
+
+      points.forEach((p) => {
+        const key = normalizeSurveyCategory(p.individuals_estimated || p.land_cover || "");
+        if (!key) return;
+        counts[key] += 1;
+        total += 1;
+      });
+
+      surveyPieTotal.textContent = String(total);
+
+      if (!total) {
+        surveyPieChart.style.background = 'conic-gradient(#e5e7eb 0 100%)';
+        surveyPieChart.setAttribute('aria-label', 'Nessuna segnalazione survey classificata disponibile');
+        surveyPieLegend.innerHTML = surveyPieClasses.map(item => `
+          <div class="pie-legend-row">
+            <span class="pie-legend-swatch" style="background:${item.color}"></span>
+            <span>${item.label}</span>
+            <span class="pie-legend-value">0</span>
+          </div>
+        `).join('');
+        return;
+      }
+
+      let cursor = 0;
+      const segments = surveyPieClasses.map(item => {
+        const value = counts[item.key];
+        const start = cursor;
+        const end = cursor + (value / total) * 100;
+        cursor = end;
+        return `${item.color} ${start.toFixed(2)}% ${end.toFixed(2)}%`;
+      });
+      surveyPieChart.style.background = `conic-gradient(${segments.join(', ')})`;
+      surveyPieChart.setAttribute('aria-label', surveyPieClasses.map(item => `${item.label}: ${counts[item.key]}`).join(', '));
+
+      surveyPieLegend.innerHTML = surveyPieClasses.map(item => {
+        const value = counts[item.key];
+        const pct = total ? Math.round((value / total) * 100) : 0;
+        return `
+          <div class="pie-legend-row">
+            <span class="pie-legend-swatch" style="background:${item.color}"></span>
+            <span>${item.label}</span>
+            <span class="pie-legend-value">${value} (${pct}%)</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function setAuthStatus(message, type = "") {
+      authStatus.textContent = message || "";
+      authStatus.className = "auth-status" + (type ? " " + type : "");
+    }
+
+    function showLogin() {
+      authOverlay.classList.add("is-visible");
+      authOverlay.setAttribute("aria-hidden", "false");
+      btnReload.disabled = true;
+      btnTable.disabled = true;
+      btnNotes.disabled = true;
+      btnMeasure.disabled = true;
+      btnPrintPdf.disabled = true;
+      btnCancelPrint.disabled = true;
+      btnClearPrint.disabled = true;
+      btnCancelPrint.classList.add("is-hidden");
+      btnClearPrint.classList.add("is-hidden");
+      btnGeojson.disabled = true;
+      btnKml.disabled = true;
+      setStatus("Accesso riservato: effettua il login per caricare i dati.", true);
+      setTimeout(() => authEmail.focus(), 80);
+    }
+
+    function hideLogin() {
+      authOverlay.classList.remove("is-visible");
+      authOverlay.setAttribute("aria-hidden", "true");
+    }
+
+    function updateAuthUI(session) {
+      currentSession = session;
+      const logged = !!session;
+      btnReload.disabled = !logged;
+      btnTable.disabled = !logged;
+      btnNotes.disabled = !logged;
+      btnMeasure.disabled = !logged;
+      btnPrintPdf.disabled = !logged;
+      btnCancelPrint.disabled = true;
+      btnClearPrint.disabled = !logged || !printSelectionLayer;
+      btnGeojson.disabled = !logged;
+      btnKml.disabled = !logged;
+      btnLogout.classList.toggle("is-hidden", !logged);
+      authUser.classList.toggle("is-hidden", !logged);
+      authUser.textContent = logged ? (session.user?.email || "utente autenticato") : "";
+    }
+
+    async function checkSession() {
+      const { data, error } = await sb.auth.getSession();
+      if (error) {
+        console.error(error);
+        updateAuthUI(null);
+        showLogin();
+        return false;
+      }
+
+      updateAuthUI(data.session || null);
+      if (!data.session) {
+        showLogin();
+        return false;
+      }
+
+      hideLogin();
+      return true;
+    }
+
+    authForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      setAuthStatus("Verifica credenziali…");
+      authSubmit.disabled = true;
+
+      try {
+        const { data, error } = await sb.auth.signInWithPassword({
+          email: authEmail.value.trim(),
+          password: authPassword.value
+        });
+
+        if (error) throw error;
+
+        updateAuthUI(data.session || null);
+        setAuthStatus("Accesso riuscito.", "success");
+        hideLogin();
+        await loadPoints();
+      } catch (error) {
+        console.error(error);
+        updateAuthUI(null);
+        setAuthStatus("Accesso non riuscito. Controlla email e password.", "error");
+      } finally {
+        authSubmit.disabled = false;
+      }
+    });
+
+    btnLogout.addEventListener("click", async () => {
+      await sb.auth.signOut();
+      currentSession = null;
+      allPoints = [];
+      allNotes = [];
+      allHistoricPoints = [];
+      allRilieviPoints = [];
+      markersById.clear();
+      layer.clearLayers();
+      historicLayer.clearLayers();
+      rilieviLayer.clearLayers();
+      heatPointsData = [];
+      heatLayer.setLatLngs([]);
+      clearPrintSelection(false);
+      renderTable();
+      renderNotesTable();
+      document.getElementById("totalPoints").textContent = "0";
+      document.getElementById("lastUpdate").textContent = "—";
+      updateSurveyPie([]);
+      updateAuthUI(null);
+      showLogin();
+    });
+
+    sb.auth.onAuthStateChange((_event, session) => {
+      updateAuthUI(session || null);
+    });
+
+    const map = L.map("map", {
+      zoomControl: true,
+      preferCanvas: true
+    }).setView([40.15, 9.05], 7);
+
+    const topoBase = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}", {
+      maxZoom: 19,
+      crossOrigin: true,
+      attribution: "Tiles &copy; Esri &mdash; Sources: Esri, HERE, Garmin, FAO, NOAA, USGS, &copy; OpenStreetMap contributors, and the GIS User Community"
+    });
+
+    const satelliteBase = L.tileLayer("https://mt0.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}", {
+      maxZoom: 20,
+      crossOrigin: true,
+      attribution: "Map data &copy; Google"
+    });
+
+    topoBase.addTo(map);
+
+    const historicLayer = L.featureGroup().addTo(map);
+    const rilieviLayer = L.featureGroup().addTo(map);
+    const layer = L.featureGroup().addTo(map);
+    const heatLayer = L.heatLayer([], {
+      radius: 34,
+      blur: 26,
+      maxZoom: 14,
+      minOpacity: 0.28,
+      gradient: {
+        0.20: "#22c55e",
+        0.50: "#facc15",
+        0.78: "#f97316",
+        1.00: "#dc2626"
+      }
+    });
+
+    function refreshHeatLayerByZoom() {
+      if (!heatLayer) return;
+      const zoom = map.getZoom();
+      if (zoom > HEATMAP_MAX_ACTIVE_ZOOM) {
+        heatLayer.setLatLngs([]);
+        return;
+      }
+      heatLayer.setLatLngs(heatPointsData);
+    }
+
+    map.on("zoomend", refreshHeatLayerByZoom);
+
+    L.control.layers(
+      {
+        "Sfondo topografico": topoBase,
+        "Satellite": satelliteBase
+      },
+      {
+        "Densità segnalazioni": heatLayer,
+        "Segnalazioni Survey": layer,
+        "Segnalazioni storiche": historicLayer,
+        "Altre segnalazioni": rilieviLayer
+      },
+      { collapsed: false }
+    ).addTo(map);
+
+    const photoModal = document.getElementById("photoModal");
+    const photoModalImg = document.getElementById("photoModalImg");
+    const photoModalTitle = document.getElementById("photoModalTitle");
+    const photoModalClose = document.getElementById("photoModalClose");
+
+    function openPhotoModal(url, title) {
+      photoModalImg.src = url;
+      photoModalTitle.textContent = title ? `Foto: ${title}` : "Foto segnalazione";
+      photoModal.classList.add("is-visible");
+      photoModal.setAttribute("aria-hidden", "false");
+    }
+
+    function closePhotoModal() {
+      photoModal.classList.remove("is-visible");
+      photoModal.setAttribute("aria-hidden", "true");
+      photoModalImg.src = "";
+    }
+
+    photoModalClose.addEventListener("click", closePhotoModal);
+
+    photoModal.addEventListener("click", (event) => {
+      if (event.target === photoModal) {
+        closePhotoModal();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closePhotoModal();
+        closeTableModal();
+        closeNotesModal();
+      }
+    });
+
+    document.addEventListener("click", (event) => {
+      const link = event.target.closest(".photo-preview-link");
+      if (!link) return;
+      event.preventDefault();
+      openPhotoModal(link.dataset.photoUrl, link.dataset.photoTitle);
+    });
+
+
+    function setStatus(message, isError = false) {
+      const el = document.getElementById("status");
+      el.textContent = message || "";
+      el.className = "status" + (isError ? " error" : "");
+    }
+
+    function getColor(value) {
+      const v = String(value || "").trim().toLowerCase();
+      if (v === "1-9") return "#f9a8d4";
+      if (v === "10-19") return "#f472b6";
+      if (v === "20-29") return "#db2777";
+      if (v === "più di 30" || v === "piu di 30" || v === ">30" || v === "30+") return "#9d174d";
+      return "#64748b";
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function formatDate(value) {
+      if (!value) return "n.d.";
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return "n.d.";
+      return d.toLocaleString("it-IT", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+
+    function photoLinks(p) {
+      const photos = [
+        ["Sito", p.photo_site_url || p.photo_url],
+        ["Insieme", p.photo_group_url],
+        ["Pianta", p.photo_plant_url],
+        ["Foglia", p.photo_leaf_under_url]
+      ].filter(([, url]) => !!url);
+
+      if (!photos.length) return "";
+
+      return `
+        <div class="popup-photos">
+          ${photos.map(([label, url]) =>
+            `<a href="#" class="photo-preview-link" data-photo-url="${escapeHtml(url)}" data-photo-title="${escapeHtml(label)}">${escapeHtml(label)}</a>`
+          ).join("")}
+        </div>
+      `;
+    }
+
+    function makePopup(p) {
+      return `
+        <div class="popup-title">Segnalazione peonia</div>
+        <div class="popup-row"><strong>Rilevatore:</strong> ${escapeHtml(p.compiler || p.name || "n.d.")}</div>
+        <div class="popup-row"><strong>Individui stimati:</strong> ${escapeHtml(p.individuals_estimated || p.land_cover || "n.d.")}</div>
+        <div class="popup-row"><strong>Data:</strong> ${escapeHtml(formatDate(p.created_at))}</div>
+        <div class="popup-row"><strong>Coordinate:</strong> ${Number(p.lat).toFixed(6)}, ${Number(p.lon).toFixed(6)}</div>
+        ${photoLinks(p)}
+      `;
+    }
+
+
+    const historicSquareIcon = L.divIcon({
+      className: "",
+      html: '<div class="historic-square-marker"></div>',
+      iconSize: [15, 15],
+      iconAnchor: [7.5, 7.5],
+      popupAnchor: [0, -8]
+    });
+
+    const otherCircleIcon = L.divIcon({
+      className: "",
+      html: '<div class="other-circle-marker"></div>',
+      iconSize: [15, 15],
+      iconAnchor: [7.5, 7.5],
+      popupAnchor: [0, -8]
+    });
+
+    function makeRilieviPopup(p) {
+      const lat = Number(p.lat);
+      const lon = Number(p.long);
+      return `
+        <div class="popup-title">Altra segnalazione peonia</div>
+        <div class="popup-row"><strong>Specie ipotizzata:</strong> ${escapeHtml(p.specie_ipotizzata || "n.d.")}</div>
+        <div class="popup-row"><strong>Data ritrovamento:</strong> ${escapeHtml(p.data_ritrovamento || "n.d.")}</div>
+        <div class="popup-row"><strong>Stato fenologico:</strong> ${escapeHtml(p.stato_fenologico || "n.d.")}</div>
+        <div class="popup-row"><strong>Densità popolazione:</strong> ${escapeHtml(p.densita_popolazione || "n.d.")}</div>
+        <div class="popup-row"><strong>Campionata:</strong> ${escapeHtml(p.campionata || "n.d.")}</div>
+        <div class="popup-row"><strong>Coordinate:</strong> ${Number.isFinite(lat) ? lat.toFixed(6) : "n.d."}, ${Number.isFinite(lon) ? lon.toFixed(6) : "n.d."}</div>
+      `;
+    }
+
+    function makeHistoricPopup(p) {
+      const lat = Number(p.lat);
+      const lon = Number(p.lon);
+      return `
+        <div class="popup-title">Segnalazione storica peonia</div>
+        <div class="popup-row"><strong>Compilatore:</strong> ${escapeHtml(p.compiler || "n.d.")}</div>
+        <div class="popup-row"><strong>Località/descrizione:</strong> ${escapeHtml(p.place_description || "n.d.")}</div>
+        <div class="popup-row"><strong>Itinerario:</strong> ${escapeHtml(p.itinerary || "n.d.")}</div>
+        <div class="popup-row"><strong>Individui stimati:</strong> ${escapeHtml(p.individuals_estimated || "n.d.")}</div>
+        <div class="popup-row"><strong>Periodo osservazione:</strong> ${escapeHtml(p.observation_period || "n.d.")}</div>
+        <div class="popup-row"><strong>Note:</strong> ${escapeHtml(p.notes || "n.d.")}</div>
+        <div class="popup-row"><strong>Coordinate:</strong> ${Number.isFinite(lat) ? lat.toFixed(6) : "n.d."}, ${Number.isFinite(lon) ? lon.toFixed(6) : "n.d."}</div>
+      `;
+    }
+
+
+    function openTableModal() {
+      tableModal.classList.add("is-visible");
+      tableModal.setAttribute("aria-hidden", "false");
+      renderTable();
+      setTimeout(() => tableSearch.focus(), 80);
+    }
+
+    function closeTableModal() {
+      tableModal.classList.remove("is-visible");
+      tableModal.setAttribute("aria-hidden", "true");
+    }
+
+    function openNotesModal() {
+      notesModal.classList.add("is-visible");
+      notesModal.setAttribute("aria-hidden", "false");
+      loadNotes();
+      setTimeout(() => notesSearch.focus(), 80);
+    }
+
+    function closeNotesModal() {
+      notesModal.classList.remove("is-visible");
+      notesModal.setAttribute("aria-hidden", "true");
+    }
+
+    function formatBoolSiNo(value) {
+      return value === true ? "SI" : "NO";
+    }
+
+    function renderNotesTable() {
+      const filter = String(notesSearch.value || "").trim().toLowerCase();
+      const rows = allNotes.filter(n => {
+        if (!filter) return true;
+        const haystack = [
+          n.id,
+          formatDate(n.created_at),
+          n.nome_cognome || "",
+          n.email || "",
+          formatBoolSiNo(n.menzione_contributore),
+          formatBoolSiNo(n.consenso)
+        ].join(" ").toLowerCase();
+        return haystack.includes(filter);
+      });
+
+      notesCount.textContent = `${rows.length} record${rows.length === 1 ? "" : "s"}`;
+
+      if (!rows.length) {
+        notesTableBody.innerHTML = '<tr><td colspan="6" class="cell-muted">Nessuna nota rilevatore da mostrare.</td></tr>';
+        return;
+      }
+
+      notesTableBody.innerHTML = rows.map(n => `
+        <tr>
+          <td>${escapeHtml(n.id ?? "")}</td>
+          <td>${escapeHtml(formatDate(n.created_at))}</td>
+          <td>${escapeHtml(n.nome_cognome || "n.d.")}</td>
+          <td>${escapeHtml(n.email || "n.d.")}</td>
+          <td>${escapeHtml(formatBoolSiNo(n.menzione_contributore))}</td>
+          <td>${escapeHtml(formatBoolSiNo(n.consenso))}</td>
+        </tr>
+      `).join("");
+    }
+
+    async function loadNotes() {
+      if (!currentSession) {
+        const ok = await checkSession();
+        if (!ok) return;
+      }
+
+      notesTableBody.innerHTML = '<tr><td colspan="6" class="cell-muted">Caricamento note rilevatori…</td></tr>';
+      notesCount.textContent = "0 record";
+
+      const { data, error } = await sb
+        .from(NOTES_TABLE)
+        .select("id, created_at, nome_cognome, email, menzione_contributore, consenso")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error(error);
+        allNotes = [];
+        notesTableBody.innerHTML = `<tr><td colspan="6" class="cell-muted">Errore caricamento note: ${escapeHtml(error.message || "controlla policy Supabase/RLS")}</td></tr>`;
+        return;
+      }
+
+      allNotes = data || [];
+      renderNotesTable();
+    }
+
+    function getRecordId(p, type = "recent") {
+      const rawId = p.id ?? `${p.lat}_${p.lon}_${p.created_at ?? p.observation_period ?? ""}`;
+      return `${type}:${rawId}`;
+    }
+
+    function getPhotoCount(p) {
+      return [p.photo_site_url || p.photo_url, p.photo_group_url, p.photo_plant_url, p.photo_leaf_under_url]
+        .filter(Boolean).length;
+    }
+
+    function renderTable() {
+      const filter = String(tableSearch.value || "").trim().toLowerCase();
+
+      const recentRows = allPoints.map(p => ({ type: "recent", label: "Survey", data: p }));
+      const historicRows = allHistoricPoints.map(p => ({ type: "historic", label: "Storica", data: p }));
+      const rilieviRows = allRilieviPoints.map(p => ({ type: "rilievo", label: "Altra segnalazione", data: p }));
+      const rows = [...recentRows, ...historicRows, ...rilieviRows].filter(row => {
+        const p = row.data;
+        if (!filter) return true;
+        const haystack = row.type === "historic"
+          ? [
+              row.label,
+              p.compiler || "",
+              p.place_description || "",
+              p.itinerary || "",
+              p.individuals_estimated || "",
+              p.observation_period || "",
+              p.notes || "",
+              p.lat,
+              p.lon
+            ].join(" ").toLowerCase()
+          : row.type === "rilievo"
+            ? [
+                row.label,
+                p.specie_ipotizzata || "",
+                p.data_ritrovamento || "",
+                p.stato_fenologico || "",
+                p.densita_popolazione || "",
+                p.campionata || "",
+                p.lat,
+                p.long
+              ].join(" ").toLowerCase()
+            : [
+                row.label,
+                p.compiler || p.name || "",
+                p.individuals_estimated || p.land_cover || "",
+                formatDate(p.created_at),
+                p.lat,
+                p.lon
+              ].join(" ").toLowerCase();
+        return haystack.includes(filter);
+      });
+
+      tableCount.textContent = `${rows.length} record${rows.length === 1 ? "" : "s"}`;
+
+      if (!rows.length) {
+        recordsTableBody.innerHTML = '<tr><td colspan="9" class="cell-muted">Nessuna segnalazione da mostrare.</td></tr>';
+        return;
+      }
+
+      recordsTableBody.innerHTML = rows.map(row => {
+        const p = row.data;
+        const id = escapeHtml(getRecordId(p, row.type));
+        const lat = Number(p.lat);
+        const lon = Number(row.type === "rilievo" ? p.long : p.lon);
+        const rilevatore = escapeHtml(row.type === "rilievo" ? (p.specie_ipotizzata || "n.d.") : (p.compiler || p.name || "n.d."));
+        const individui = escapeHtml(row.type === "rilievo" ? (p.densita_popolazione || "n.d.") : (p.individuals_estimated || p.land_cover || "n.d."));
+        const data = row.type === "historic"
+          ? escapeHtml(p.observation_period || formatDate(p.created_at))
+          : row.type === "rilievo"
+            ? escapeHtml(p.data_ritrovamento || "n.d.")
+            : escapeHtml(formatDate(p.created_at));
+        const descrizione = row.type === "historic"
+          ? escapeHtml(p.place_description || p.itinerary || p.notes || "—")
+          : row.type === "rilievo"
+            ? escapeHtml([p.stato_fenologico, p.campionata ? `Campionata: ${p.campionata}` : ""].filter(Boolean).join("; ") || "—")
+            : "—";
+        const foto = row.type === "recent" ? getPhotoCount(p) : "—";
+        return `
+          <tr>
+            <td>${escapeHtml(row.label)}</td>
+            <td>${rilevatore}</td>
+            <td>${individui}</td>
+            <td>${data}</td>
+            <td>${Number.isFinite(lat) ? lat.toFixed(6) : "n.d."}</td>
+            <td>${Number.isFinite(lon) ? lon.toFixed(6) : "n.d."}</td>
+            <td>${descrizione}</td>
+            <td>${foto ? foto : "—"}</td>
+            <td><a href="#" class="mini-link table-zoom-link" data-record-id="${id}">Vai</a></td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function buildGeoJSON() {
+      const recentFeatures = allPoints.map(p => ({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [Number(p.lon), Number(p.lat)]
+        },
+        properties: {
+          source_table: TABLE,
+          tipo: "recente",
+          id: p.id ?? null,
+          rilevatore: p.compiler || p.name || null,
+          individui_stimati: p.individuals_estimated || p.land_cover || null,
+          data: p.created_at || null,
+          photo_site_url: p.photo_site_url || p.photo_url || null,
+          photo_group_url: p.photo_group_url || null,
+          photo_plant_url: p.photo_plant_url || null,
+          photo_leaf_under_url: p.photo_leaf_under_url || null
+        }
+      }));
+
+      const historicFeatures = allHistoricPoints.map(p => ({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [Number(p.lon), Number(p.lat)]
+        },
+        properties: {
+          source_table: HISTORIC_TABLE,
+          tipo: "storica",
+          id: p.id ?? null,
+          compilatore: p.compiler || null,
+          place_description: p.place_description || null,
+          itinerary: p.itinerary || null,
+          individuals_estimated: p.individuals_estimated || null,
+          observation_period: p.observation_period || null,
+          notes: p.notes || null,
+          data_inserimento: p.created_at || null
+        }
+      }));
+
+      const rilieviFeatures = allRilieviPoints.map(p => ({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [Number(p.long), Number(p.lat)]
+        },
+        properties: {
+          source_table: RILIEVI_TABLE,
+          tipo: "altra_segnalazione",
+          id: p.id ?? null,
+          fid: p.fid ?? null,
+          specie_ipotizzata: p.specie_ipotizzata || null,
+          data_ritrovamento: p.data_ritrovamento || null,
+          stato_fenologico: p.stato_fenologico || null,
+          densita_popolazione: p.densita_popolazione || null,
+          campionata: p.campionata || null
+        }
+      }));
+
+      return {
+        type: "FeatureCollection",
+        name: "segnalazioni_peonie_complete",
+        crs: {
+          type: "name",
+          properties: { name: "urn:ogc:def:crs:OGC:1.3:CRS84" }
+        },
+        features: [...recentFeatures, ...historicFeatures, ...rilieviFeatures]
+      };
+    }
+
+    function downloadGeoJSON() {
+      if (!currentSession) {
+        showLogin();
+        return;
+      }
+      const totalExport = allPoints.length + allHistoricPoints.length + allRilieviPoints.length;
+      if (!totalExport) {
+        setStatus("Nessun dato da esportare. Aggiorna prima la mappa.", true);
+        return;
+      }
+
+      const geojson = buildGeoJSON();
+      const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/geo+json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const stamp = new Date().toISOString().slice(0, 19).replaceAll(":", "-");
+      a.href = url;
+      a.download = `segnalazioni_peonie_complete_${stamp}.geojson`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setStatus(`GeoJSON esportato: ${allPoints.length} survey + ${allHistoricPoints.length} storiche + ${allRilieviPoints.length} altre segnalazioni.`);
+    }
+
+
+    function escapeXml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&apos;");
+    }
+
+    function buildKML() {
+      const recentPlacemarks = allPoints.map(p => {
+        const lat = Number(p.lat);
+        const lon = Number(p.lon);
+        const name = p.compiler || p.name || "Segnalazione peonia";
+        const individui = p.individuals_estimated || p.land_cover || "n.d.";
+        const data = p.created_at || "";
+        const photos = [
+          ["Foto sito", p.photo_site_url || p.photo_url],
+          ["Foto insieme", p.photo_group_url],
+          ["Foto pianta", p.photo_plant_url],
+          ["Foto foglia", p.photo_leaf_under_url]
+        ].filter(([, url]) => !!url);
+
+        const description = [
+          `<p><strong>Tipo:</strong> recente</p>`,
+          `<p><strong>Rilevatore:</strong> ${escapeXml(name)}</p>`,
+          `<p><strong>Individui stimati:</strong> ${escapeXml(individui)}</p>`,
+          `<p><strong>Data:</strong> ${escapeXml(data)}</p>`,
+          `<p><strong>Coordinate:</strong> ${lat.toFixed(6)}, ${lon.toFixed(6)}</p>`,
+          ...photos.map(([label, url]) => `<p><a href="${escapeXml(url)}">${escapeXml(label)}</a></p>`)
+        ].join("");
+
+        return `
+    <Placemark>
+      <name>${escapeXml(name)}</name>
+      <description><![CDATA[${description}]]></description>
+      <ExtendedData>
+        <Data name="source_table"><value>${escapeXml(TABLE)}</value></Data>
+        <Data name="tipo"><value>recente</value></Data>
+        <Data name="id"><value>${escapeXml(p.id ?? "")}</value></Data>
+        <Data name="rilevatore"><value>${escapeXml(name)}</value></Data>
+        <Data name="individui_stimati"><value>${escapeXml(individui)}</value></Data>
+        <Data name="data"><value>${escapeXml(data)}</value></Data>
+        <Data name="photo_site_url"><value>${escapeXml(p.photo_site_url || p.photo_url || "")}</value></Data>
+        <Data name="photo_group_url"><value>${escapeXml(p.photo_group_url || "")}</value></Data>
+        <Data name="photo_plant_url"><value>${escapeXml(p.photo_plant_url || "")}</value></Data>
+        <Data name="photo_leaf_under_url"><value>${escapeXml(p.photo_leaf_under_url || "")}</value></Data>
+      </ExtendedData>
+      <Point>
+        <coordinates>${lon},${lat},0</coordinates>
+      </Point>
+    </Placemark>`;
+      });
+
+      const historicPlacemarks = allHistoricPoints.map(p => {
+        const lat = Number(p.lat);
+        const lon = Number(p.lon);
+        const name = p.compiler || p.place_description || "Segnalazione storica peonia";
+        const description = [
+          `<p><strong>Tipo:</strong> storica</p>`,
+          `<p><strong>Compilatore:</strong> ${escapeXml(p.compiler || "n.d.")}</p>`,
+          `<p><strong>Descrizione luogo:</strong> ${escapeXml(p.place_description || "n.d.")}</p>`,
+          `<p><strong>Itinerario:</strong> ${escapeXml(p.itinerary || "n.d.")}</p>`,
+          `<p><strong>Individui stimati:</strong> ${escapeXml(p.individuals_estimated || "n.d.")}</p>`,
+          `<p><strong>Periodo osservazione:</strong> ${escapeXml(p.observation_period || "n.d.")}</p>`,
+          `<p><strong>Note:</strong> ${escapeXml(p.notes || "n.d.")}</p>`,
+          `<p><strong>Coordinate:</strong> ${lat.toFixed(6)}, ${lon.toFixed(6)}</p>`
+        ].join("");
+
+        return `
+    <Placemark>
+      <name>${escapeXml(name)}</name>
+      <description><![CDATA[${description}]]></description>
+      <Style>
+        <IconStyle>
+          <color>ffff0000</color>
+          <scale>1.1</scale>
+          <Icon><href>http://maps.google.com/mapfiles/kml/shapes/square.png</href></Icon>
+        </IconStyle>
+      </Style>
+      <ExtendedData>
+        <Data name="source_table"><value>${escapeXml(HISTORIC_TABLE)}</value></Data>
+        <Data name="tipo"><value>storica</value></Data>
+        <Data name="id"><value>${escapeXml(p.id ?? "")}</value></Data>
+        <Data name="compiler"><value>${escapeXml(p.compiler || "")}</value></Data>
+        <Data name="place_description"><value>${escapeXml(p.place_description || "")}</value></Data>
+        <Data name="itinerary"><value>${escapeXml(p.itinerary || "")}</value></Data>
+        <Data name="individuals_estimated"><value>${escapeXml(p.individuals_estimated || "")}</value></Data>
+        <Data name="observation_period"><value>${escapeXml(p.observation_period || "")}</value></Data>
+        <Data name="notes"><value>${escapeXml(p.notes || "")}</value></Data>
+        <Data name="data_inserimento"><value>${escapeXml(p.created_at || "")}</value></Data>
+      </ExtendedData>
+      <Point>
+        <coordinates>${lon},${lat},0</coordinates>
+      </Point>
+    </Placemark>`;
+      });
+
+      const rilieviPlacemarks = allRilieviPoints.map(p => {
+        const lat = Number(p.lat);
+        const lon = Number(p.long);
+        const name = p.specie_ipotizzata || "Altra segnalazione peonia";
+        const description = [
+          `<p><strong>Tipo:</strong> altra segnalazione</p>`,
+          `<p><strong>Specie ipotizzata:</strong> ${escapeXml(p.specie_ipotizzata || "n.d.")}</p>`,
+          `<p><strong>Data ritrovamento:</strong> ${escapeXml(p.data_ritrovamento || "n.d.")}</p>`,
+          `<p><strong>Stato fenologico:</strong> ${escapeXml(p.stato_fenologico || "n.d.")}</p>`,
+          `<p><strong>Densità popolazione:</strong> ${escapeXml(p.densita_popolazione || "n.d.")}</p>`,
+          `<p><strong>Campionata:</strong> ${escapeXml(p.campionata || "n.d.")}</p>`,
+          `<p><strong>Coordinate:</strong> ${lat.toFixed(6)}, ${lon.toFixed(6)}</p>`
+        ].join("");
+
+        return `
+    <Placemark>
+      <name>${escapeXml(name)}</name>
+      <description><![CDATA[${description}]]></description>
+      <Style>
+        <IconStyle>
+          <color>ff2626dc</color>
+          <scale>1.1</scale>
+          <Icon><href>http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon>
+        </IconStyle>
+      </Style>
+      <ExtendedData>
+        <Data name="source_table"><value>${escapeXml(RILIEVI_TABLE)}</value></Data>
+        <Data name="tipo"><value>altra_segnalazione</value></Data>
+        <Data name="id"><value>${escapeXml(p.id ?? "")}</value></Data>
+        <Data name="fid"><value>${escapeXml(p.fid ?? "")}</value></Data>
+        <Data name="specie_ipotizzata"><value>${escapeXml(p.specie_ipotizzata || "")}</value></Data>
+        <Data name="data_ritrovamento"><value>${escapeXml(p.data_ritrovamento || "")}</value></Data>
+        <Data name="stato_fenologico"><value>${escapeXml(p.stato_fenologico || "")}</value></Data>
+        <Data name="densita_popolazione"><value>${escapeXml(p.densita_popolazione || "")}</value></Data>
+        <Data name="campionata"><value>${escapeXml(p.campionata || "")}</value></Data>
+      </ExtendedData>
+      <Point>
+        <coordinates>${lon},${lat},0</coordinates>
+      </Point>
+    </Placemark>`;
+      });
+
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Segnalazioni peonie complete</name>
+${[...recentPlacemarks, ...historicPlacemarks, ...rilieviPlacemarks].join("\n")}
+  </Document>
+</kml>`;
+    }
+
+    function downloadKML() {
+      if (!currentSession) {
+        showLogin();
+        return;
+      }
+      const totalExport = allPoints.length + allHistoricPoints.length + allRilieviPoints.length;
+      if (!totalExport) {
+        setStatus("Nessun dato da esportare. Aggiorna prima la mappa.", true);
+        return;
+      }
+
+      const kml = buildKML();
+      const blob = new Blob([kml], { type: "application/vnd.google-earth.kml+xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const stamp = new Date().toISOString().slice(0, 19).replaceAll(":", "-");
+      a.href = url;
+      a.download = `segnalazioni_peonie_complete_${stamp}.kml`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setStatus(`KML esportato: ${allPoints.length} survey + ${allHistoricPoints.length} storiche + ${allRilieviPoints.length} altre segnalazioni.`);
+    }
+
+    tableModalClose.addEventListener("click", closeTableModal);
+
+    tableModal.addEventListener("click", (event) => {
+      if (event.target === tableModal) closeTableModal();
+    });
+
+    tableSearch.addEventListener("input", renderTable);
+
+    notesModalClose.addEventListener("click", closeNotesModal);
+
+    notesModal.addEventListener("click", (event) => {
+      if (event.target === notesModal) closeNotesModal();
+    });
+
+    notesSearch.addEventListener("input", renderNotesTable);
+
+    recordsTableBody.addEventListener("click", (event) => {
+      const link = event.target.closest(".table-zoom-link");
+      if (!link) return;
+      event.preventDefault();
+      const marker = markersById.get(link.dataset.recordId);
+      if (marker) {
+        closeTableModal();
+        map.setView(marker.getLatLng(), Math.max(map.getZoom(), 15));
+        marker.openPopup();
+      }
+    });
+
+
+    const measureLayer = L.featureGroup().addTo(map);
+    let measureActive = false;
+    let measurePoints = [];
+    let measureLine = null;
+    let measureTooltip = null;
+
+    function formatDistance(meters) {
+      if (meters >= 1000) return `${(meters / 1000).toFixed(2)} km`;
+      return `${Math.round(meters)} m`;
+    }
+
+    function totalMeasureDistance(points) {
+      return points.reduce((total, point, index) => {
+        if (index === 0) return 0;
+        return total + points[index - 1].distanceTo(point);
+      }, 0);
+    }
+
+    function resetMeasure() {
+      measureLayer.clearLayers();
+      measurePoints = [];
+      measureLine = null;
+      measureTooltip = null;
+      map.getContainer().classList.remove("is-measuring");
+      measureActive = false;
+      btnMeasure.textContent = "Misura distanze";
+    }
+
+    function updateMeasure() {
+      if (measureLine) measureLayer.removeLayer(measureLine);
+      if (measureTooltip) measureLayer.removeLayer(measureTooltip);
+
+      if (measurePoints.length >= 2) {
+        measureLine = L.polyline(measurePoints, {
+          color: "#db2777",
+          weight: 4,
+          opacity: 0.85,
+          dashArray: "8 8"
+        }).addTo(measureLayer);
+      }
+
+      if (measurePoints.length) {
+        const total = totalMeasureDistance(measurePoints);
+        const last = measurePoints[measurePoints.length - 1];
+        measureTooltip = L.tooltip({
+          permanent: true,
+          direction: "top",
+          className: "measure-tooltip",
+          offset: [0, -12]
+        })
+          .setLatLng(last)
+          .setContent(measurePoints.length === 1 ? "Aggiungi un altro punto" : `Distanza: ${formatDistance(total)}`)
+          .addTo(measureLayer);
+      }
+    }
+
+    function toggleMeasure() {
+      if (!currentSession) {
+        showLogin();
+        return;
+      }
+
+      if (measureActive) {
+        resetMeasure();
+        setStatus("Misurazione distanze disattivata.");
+        return;
+      }
+
+      resetMeasure();
+      measureActive = true;
+      btnMeasure.textContent = "Termina misura";
+      map.getContainer().classList.add("is-measuring");
+      setStatus("Misuratore attivo: clicca sulla mappa per aggiungere punti. Doppio clic o pulsante per terminare e cancellare.");
+    }
+
+    map.on("click", (event) => {
+      if (!measureActive) return;
+      L.circleMarker(event.latlng, {
+        radius: 5,
+        color: "#ffffff",
+        weight: 2,
+        fillColor: "#db2777",
+        fillOpacity: 1
+      }).addTo(measureLayer);
+      measurePoints.push(event.latlng);
+      updateMeasure();
+    });
+
+    map.on("dblclick", () => {
+      if (measureActive) {
+        resetMeasure();
+        setStatus("Misurazione terminata.");
+      }
+    });
+
+    let printSelectionLayer = null;
+    let printDrawer = null;
+    let printSelectionActive = false;
+
+    function updatePrintButtons() {
+      const logged = !!currentSession;
+      btnPrintPdf.disabled = !logged || printSelectionActive;
+      btnCancelPrint.disabled = !logged || !printSelectionActive;
+      btnClearPrint.disabled = !logged || !printSelectionLayer;
+      btnCancelPrint.classList.toggle("is-hidden", !printSelectionActive);
+      btnClearPrint.classList.toggle("is-hidden", !printSelectionLayer);
+      btnPrintPdf.textContent = printSelectionActive ? "Selezione area…" : "Layout PDF";
+    }
+
+    function stopPrintSelection(message = "Selezione layout annullata.") {
+      if (printDrawer) {
+        try {
+          printDrawer.disable();
+        } catch (error) {
+          console.warn(error);
+        }
+        printDrawer = null;
+      }
+
+      printSelectionActive = false;
+      map.getContainer().classList.remove("is-selecting-print-area");
+      map.off(L.Draw.Event.CREATED, handlePrintRectangleCreated);
+      map.off("draw:drawstop", handlePrintDrawStop);
+      updatePrintButtons();
+      if (message) setStatus(message);
+    }
+
+    function clearPrintSelection(showMessage = true) {
+      if (printSelectionLayer) {
+        map.removeLayer(printSelectionLayer);
+        printSelectionLayer = null;
+      }
+      updatePrintButtons();
+      if (showMessage) setStatus("Riquadro layout PDF cancellato.");
+    }
+
+    async function handlePrintRectangleCreated(event) {
+      stopPrintSelection("");
+      clearPrintSelection(false);
+      printSelectionLayer = event.layer.addTo(map);
+      updatePrintButtons();
+
+      try {
+        await makePdfFromBounds(printSelectionLayer.getBounds());
+      } catch (error) {
+        console.error(error);
+        setStatus("Errore durante la creazione del PDF. Verifica la connessione e riprova.", true);
+      }
+    }
+
+    function handlePrintDrawStop() {
+      if (printSelectionActive) {
+        stopPrintSelection("Selezione layout annullata.");
+      }
+    }
+
+    async function exportSelectedAreaPdf() {
+      if (!currentSession) {
+        showLogin();
+        return;
+      }
+
+      if (printSelectionActive) {
+        stopPrintSelection();
+        return;
+      }
+
+      setStatus("Seleziona con il mouse l’area da esportare in PDF. Usa ‘Annulla layout’ per uscire.");
+      printSelectionActive = true;
+      map.getContainer().classList.add("is-selecting-print-area");
+      updatePrintButtons();
+
+      printDrawer = new L.Draw.Rectangle(map, {
+        shapeOptions: {
+          color: "#db2777",
+          weight: 2,
+          fillOpacity: 0.08
+        }
+      });
+
+      map.on(L.Draw.Event.CREATED, handlePrintRectangleCreated);
+      map.on("draw:drawstop", handlePrintDrawStop);
+      printDrawer.enable();
+    }
+
+    function niceScaleBarLength(maxMeters) {
+      if (!Number.isFinite(maxMeters) || maxMeters <= 0) return 100;
+      const exponent = Math.floor(Math.log10(maxMeters));
+      const base = Math.pow(10, exponent);
+      const candidates = [1, 2, 5, 10].map(v => v * base);
+      return candidates.filter(v => v <= maxMeters).pop() || candidates[0];
+    }
+
+    function formatScaleBarLabel(meters) {
+      if (meters >= 1000) return `${(meters / 1000).toLocaleString("it-IT", { maximumFractionDigits: 1 })} km`;
+      return `${Math.round(meters).toLocaleString("it-IT")} m`;
+    }
+
+    function estimateScaleDenominator(mapWidthMm, mapWidthMeters) {
+      if (!Number.isFinite(mapWidthMm) || !Number.isFinite(mapWidthMeters) || mapWidthMm <= 0 || mapWidthMeters <= 0) {
+        return null;
+      }
+      return Math.round((mapWidthMeters * 1000) / mapWidthMm);
+    }
+
+    async function makePdfFromBounds(bounds) {
+      map.closePopup();
+      setStatus("Creazione layout PDF…");
+
+      const oldCenter = map.getCenter();
+      const oldZoom = map.getZoom();
+      const oldSelectionLayer = printSelectionLayer;
+
+      try {
+        if (oldSelectionLayer) {
+          map.removeLayer(oldSelectionLayer);
+          printSelectionLayer = null;
+        }
+
+        map.fitBounds(bounds, { padding: [0, 0], animate: false });
+        await new Promise(resolve => setTimeout(resolve, 900));
+        map.invalidateSize();
+
+        const mapElement = document.getElementById("map");
+        const canvas = await html2canvas(mapElement, {
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+          ignoreElements: element =>
+            element.classList?.contains("leaflet-control-layers") ||
+            element.classList?.contains("leaflet-control-zoom")
+        });
+
+        const imgData = canvas.toDataURL("image/png");
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        const margin = 10;
+        const titleY = margin + 5;
+        const subtitleY = margin + 11;
+        const mapX = margin;
+        const mapY = margin + 17;
+        const mapW = pageW - margin * 2;
+        const reservedBottom = 26;
+        const maxMapH = pageH - mapY - reservedBottom;
+        const mapH = Math.min(maxMapH, mapW * (canvas.height / canvas.width));
+        const mapBottom = mapY + mapH;
+
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(14);
+        pdf.text("Mappa segnalazioni peonie", margin, titleY);
+
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(9);
+        pdf.text(`Layout PDF - ${new Date().toLocaleString("it-IT")}`, margin, subtitleY);
+
+        pdf.addImage(imgData, "PNG", mapX, mapY, mapW, mapH);
+
+        pdf.setDrawColor(0, 0, 0);
+        pdf.setLineWidth(0.25);
+        pdf.rect(mapX, mapY, mapW, mapH);
+
+        const mapBounds = map.getBounds();
+        const centerLat = map.getCenter().lat;
+        const west = L.latLng(centerLat, mapBounds.getWest());
+        const east = L.latLng(centerLat, mapBounds.getEast());
+        const mapWidthMeters = west.distanceTo(east);
+        const scaleDen = estimateScaleDenominator(mapW, mapWidthMeters);
+        const scaleBarMeters = niceScaleBarLength(mapWidthMeters * 0.22);
+        const scaleBarW = (scaleBarMeters / mapWidthMeters) * mapW;
+
+        const scaleX = mapX + 8;
+        const scaleY = mapBottom + 9;
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(9);
+
+        if (scaleDen) {
+          pdf.text(`Scala approssimativa 1:${scaleDen.toLocaleString("it-IT")} se stampato in A4 al 100%`, mapX, mapBottom + 5);
+        } else {
+          pdf.text("Scala approssimativa non calcolabile", mapX, mapBottom + 5);
+        }
+
+        pdf.setLineWidth(0.8);
+        pdf.line(scaleX, scaleY, scaleX + scaleBarW, scaleY);
+        pdf.setLineWidth(0.3);
+        pdf.line(scaleX, scaleY - 2, scaleX, scaleY + 2);
+        pdf.line(scaleX + scaleBarW, scaleY - 2, scaleX + scaleBarW, scaleY + 2);
+        pdf.setFont("helvetica", "bold");
+        pdf.text(formatScaleBarLabel(scaleBarMeters), scaleX, scaleY + 6);
+
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(8);
+        pdf.text("Fonte dati: Peonie Sardegna Survey / Supabase. Sfondo cartografico come visualizzato nella mappa.", margin, pageH - 6);
+
+        const stamp = new Date().toISOString().slice(0, 19).replaceAll(":", "-");
+        pdf.save(`layout_mappa_peonie_${stamp}.pdf`);
+        setStatus("Layout PDF esportato correttamente.");
+      } finally {
+        map.setView(oldCenter, oldZoom, { animate: false });
+        if (oldSelectionLayer) {
+          oldSelectionLayer.addTo(map);
+          printSelectionLayer = oldSelectionLayer;
+        }
+        updatePrintButtons();
+        setTimeout(() => map.invalidateSize(), 150);
+      }
+    }
+
+    btnMeasure.addEventListener("click", toggleMeasure);
+    btnPrintPdf.addEventListener("click", exportSelectedAreaPdf);
+    btnCancelPrint.addEventListener("click", () => stopPrintSelection());
+    btnClearPrint.addEventListener("click", () => clearPrintSelection(true));
+
+    updateSurveyPie([]);
+    updatePrintButtons();
+
+    btnTable.addEventListener("click", () => {
+      if (!currentSession) {
+        showLogin();
+        return;
+      }
+      openTableModal();
+    });
+
+    btnNotes.addEventListener("click", () => {
+      if (!currentSession) {
+        showLogin();
+        return;
+      }
+      openNotesModal();
+    });
+
+    btnGeojson.addEventListener("click", downloadGeoJSON);
+    btnKml.addEventListener("click", downloadKML);
+
+    async function loadPoints() {
+      if (!currentSession) {
+        const ok = await checkSession();
+        if (!ok) return;
+      }
+
+      setStatus("Caricamento dati…");
+      layer.clearLayers();
+      historicLayer.clearLayers();
+      rilieviLayer.clearLayers();
+      heatLayer.setLatLngs([]);
+      markersById.clear();
+
+      const [recentResult, historicResult, rilieviResult] = await Promise.all([
+        sb
+          .from(TABLE)
+          .select("id, name, compiler, individuals_estimated, land_cover, lat, lon, created_at, photo_site_url, photo_group_url, photo_plant_url, photo_leaf_under_url, photo_url")
+          .not("lat", "is", null)
+          .not("lon", "is", null)
+          .order("created_at", { ascending: false }),
+
+        sb
+          .from(HISTORIC_TABLE)
+          .select("id, compiler, lat, lon, place_description, itinerary, individuals_estimated, observation_period, notes, created_at")
+          .not("lat", "is", null)
+          .not("lon", "is", null)
+          .order("created_at", { ascending: false }),
+
+        sb
+          .from(RILIEVI_TABLE)
+          .select("id, fid, specie_ipotizzata, data_ritrovamento, stato_fenologico, densita_popolazione, lat, long, campionata, created_at")
+          .not("lat", "is", null)
+          .not("long", "is", null)
+          .order("data_ritrovamento", { ascending: false })
+      ]);
+
+      if (recentResult.error) {
+        console.error(recentResult.error);
+        allPoints = [];
+        renderTable();
+        setStatus("Errore caricamento segnalazioni survey: " + (recentResult.error.message || "controlla policy Supabase/RLS"), true);
+        return;
+      }
+
+      if (historicResult.error) {
+        console.error(historicResult.error);
+        allHistoricPoints = [];
+        setStatus("Segnalazioni survey caricate, ma errore sulle storiche: " + (historicResult.error.message || "controlla policy Supabase/RLS"), true);
+      }
+
+      if (rilieviResult.error) {
+        console.error(rilieviResult.error);
+        allRilieviPoints = [];
+        setStatus("Segnalazioni caricate, ma errore sulle altre segnalazioni: " + (rilieviResult.error.message || "controlla policy Supabase/RLS"), true);
+      }
+
+      const valid = (recentResult.data || []).filter(p =>
+        Number.isFinite(Number(p.lat)) &&
+        Number.isFinite(Number(p.lon)) &&
+        Number(p.lat) >= -90 &&
+        Number(p.lat) <= 90 &&
+        Number(p.lon) >= -180 &&
+        Number(p.lon) <= 180
+      );
+
+      const validHistoric = (historicResult.data || []).filter(p =>
+        Number.isFinite(Number(p.lat)) &&
+        Number.isFinite(Number(p.lon)) &&
+        Number(p.lat) >= -90 &&
+        Number(p.lat) <= 90 &&
+        Number(p.lon) >= -180 &&
+        Number(p.lon) <= 180
+      );
+
+      const validRilievi = (rilieviResult.data || []).filter(p =>
+        Number.isFinite(Number(p.lat)) &&
+        Number.isFinite(Number(p.long)) &&
+        Number(p.lat) >= -90 &&
+        Number(p.lat) <= 90 &&
+        Number(p.long) >= -180 &&
+        Number(p.long) <= 180
+      );
+
+      allPoints = valid;
+      allHistoricPoints = validHistoric;
+      allRilieviPoints = validRilievi;
+      renderTable();
+      updateSurveyPie(valid);
+
+      heatPointsData = [
+        ...valid.map(p => [Number(p.lat), Number(p.lon), 0.85]),
+        ...validHistoric.map(p => [Number(p.lat), Number(p.lon), 0.65]),
+        ...validRilievi.map(p => [Number(p.lat), Number(p.long), 0.75])
+      ];
+      refreshHeatLayerByZoom();
+
+      validHistoric.forEach(p => {
+        const marker = L.marker([Number(p.lat), Number(p.lon)], {
+          icon: historicSquareIcon
+        });
+
+        marker.bindPopup(makeHistoricPopup(p));
+        marker.addTo(historicLayer);
+        markersById.set(getRecordId(p, "historic"), marker);
+      });
+
+      validRilievi.forEach(p => {
+        const marker = L.marker([Number(p.lat), Number(p.long)], {
+          icon: otherCircleIcon
+        });
+
+        marker.bindPopup(makeRilieviPopup(p));
+        marker.addTo(rilieviLayer);
+        markersById.set(getRecordId(p, "rilievo"), marker);
+      });
+
+      valid.forEach(p => {
+        const category = p.individuals_estimated || p.land_cover || "";
+        const color = getColor(category);
+
+        const marker = L.circleMarker([Number(p.lat), Number(p.lon)], {
+          radius: 8,
+          color: "#000000",
+          weight: 2,
+          fillColor: color,
+          fillOpacity: 0.95
+        });
+
+        marker.bindPopup(makePopup(p));
+        marker.addTo(layer);
+        marker.bringToFront();
+        markersById.set(getRecordId(p, "recent"), marker);
+      });
+
+      layer.bringToFront();
+
+      const total = valid.length + validHistoric.length + validRilievi.length;
+      document.getElementById("totalPoints").textContent = String(total);
+      document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString("it-IT", {
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+
+      if (total > 0) {
+        const bounds = L.featureGroup([layer, historicLayer, rilieviLayer].filter(g => g.getLayers().length > 0)).getBounds();
+        map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
+        if (!historicResult.error) {
+          setStatus(`Dati caricati correttamente: ${valid.length} survey, ${validHistoric.length} storiche, ${validRilievi.length} altre segnalazioni.`);
+        }
+      } else {
+        setStatus("Nessun punto disponibile.");
+      }
+
+      setTimeout(() => map.invalidateSize(), 150);
+    }
+
+    btnReload.addEventListener("click", async () => {
+      map.invalidateSize();
+      const ok = await checkSession();
+      if (ok) loadPoints();
+    });
+
+    window.addEventListener("load", () => {
+      setTimeout(async () => {
+        map.invalidateSize();
+        const ok = await checkSession();
+        if (ok) loadPoints();
+      }, 250);
+    });
+
+    window.addEventListener("resize", () => {
+      map.invalidateSize();
+    });
+  </script>
+</body>
+</html>
