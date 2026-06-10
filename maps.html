@@ -878,7 +878,7 @@
         </div>
 
         <div class="legend">
-          <div class="legend-heading">Segnalazioni Survey</div>
+          <div class="legend-heading">Segnalazioni APP</div>
           <div class="legend-row legend-subrow"><span class="swatch survey-swatch" style="background:#f9a8d4"></span> 1-9 individui</div>
           <div class="legend-row legend-subrow"><span class="swatch survey-swatch" style="background:#f472b6"></span> 10-19 individui</div>
           <div class="legend-row legend-subrow"><span class="swatch survey-swatch" style="background:#db2777"></span> 20-29 individui</div>
@@ -894,14 +894,13 @@
         <div class="status" id="status">Caricamento dati…</div>
       </aside>
 
-      <aside class="pie-panel" aria-label="Distribuzione delle segnalazioni survey">
-        <h3>Segnalazioni Survey</h3>
+      <aside class="pie-panel" aria-label="Distribuzione delle segnalazioni per quantità">
+        <h3>Grafico per numero individui</h3>
         <div class="pie-wrap">
-          <div class="pie-chart" id="surveyPieChart" role="img" aria-label="Distribuzione delle segnalazioni survey"></div>
+          <div class="pie-chart" id="surveyPieChart" role="img" aria-label="Distribuzione delle segnalazioni per quantità"></div>
           <div class="pie-total">
             <strong id="surveyPieTotal">0</strong>
             <span>segnalazioni</span>
-            <div class="pie-caption">Distribuzione per numero di individui.</div>
           </div>
         </div>
         <div class="pie-legend" id="surveyPieLegend"></div>
@@ -1091,7 +1090,7 @@
 
       if (!total) {
         surveyPieChart.style.background = 'conic-gradient(#e5e7eb 0 100%)';
-        surveyPieChart.setAttribute('aria-label', 'Nessuna segnalazione survey classificata disponibile');
+        surveyPieChart.setAttribute('aria-label', 'Nessuna segnalazione classificata disponibile');
         surveyPieLegend.innerHTML = surveyPieClasses.map(item => `
           <div class="pie-legend-row">
             <span class="pie-legend-swatch" style="background:${item.color}"></span>
@@ -1292,12 +1291,12 @@
 
     L.control.layers(
       {
-        "Sfondo topografico": topoBase,
-        "Satellite": satelliteBase
+        "Topografica": topoBase,
+        "Ortofoto": satelliteBase
       },
       {
         "Densità segnalazioni": heatLayer,
-        "Segnalazioni Survey": layer,
+        "Segnalazioni APP": layer,
         "Segnalazioni storiche": historicLayer,
         "Altre segnalazioni": rilieviLayer
       },
@@ -2366,7 +2365,7 @@ ${[...recentPlacemarks, ...historicPlacemarks, ...rilieviPlacemarks].join("\n")}
       allHistoricPoints = validHistoric;
       allRilieviPoints = validRilievi;
       renderTable();
-      updateSurveyPie(valid);
+      updateSurveyPie([...valid, ...validHistoric]);
 
       heatPointsData = [
         ...valid.map(p => [Number(p.lat), Number(p.lon), 0.85]),
