@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Ferma il grufolatore!</title>
+  <style>
+    :root {
+      --bg: #e7f4d8;
+      --panel: rgba(255,255,255,0.92);
+      --dark: #263322;
+      --accent: #7a4b25;
+      --danger: #b7352d;
+      --good: #2f8f46;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #bfdba4;
+      color: var(--dark);
+      overflow: hidden;
+    }
+
+    #gameWrap {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,0.35), transparent 22%),
+        linear-gradient(160deg, #d8efbf 0%, #bbdc97 48%, #95bf72 100%);
+    }
+
+    header {
+      height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: var(--panel);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+      z-index: 10;
+    }
+
+    .titleBox {
+      line-height: 1.05;
+    }
+
+    .titleBox h1 {
+      margin: 0;
+      font-size: 19px;
+    }
+
+    .titleBox span {
+      font-size: 11px;
+      opacity: .78;
+    }
+
+    .stats {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .pill {
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.1);
+      border-radius: 999px;
+      padding: 5px 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    #field {
+      position: relative;
+      flex: 1;
+      overflow: hidden;
+      cursor: crosshair;
+    }
+
+    #field::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: 0.22;
+      background-image:
+        linear-gradient(35deg, transparent 46%, rgba(255,255,255,0.4) 48%, transparent 51%),
+        linear-gradient(-25deg, transparent 47%, rgba(89,116,58,0.28) 49%, transparent 52%);
+      background-size: 90px 70px, 110px 80px;
+      pointer-events: none;
+    }
+
+    .peony {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      transform: translate(-50%, -50%);
+      display: grid;
+      place-items: center;
+      font-size: 31px;
+      border-radius: 50%;
+      background: rgba(255, 232, 244, .65);
+      border: 2px solid rgba(255,255,255,.9);
+      box-shadow: 0 3px 8px rgba(80,40,70,.15);
+      transition: transform .2s, filter .2s, opacity .2s, background .2s;
+    }
+
+    .peony.damaged {
+      filter: grayscale(.45) sepia(.2);
+      background: rgba(210, 170, 175, .62);
+      transform: translate(-50%, -50%) scale(.9) rotate(-8deg);
+    }
+
+    .peony.uprooted {
+      font-size: 27px;
+      background: rgba(110,72,37,.38);
+      filter: grayscale(.85);
+      opacity: .72;
+      transform: translate(-50%, -50%) scale(.82);
+    }
+
+    .boar {
+      position: absolute;
+      width: 54px;
+      height: 54px;
+      transform: translate(-50%, -50%);
+      display: grid;
+      place-items: center;
+      font-size: 42px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.45);
+      box-shadow: 0 4px 12px rgba(0,0,0,.18);
+      z-index: 4;
+      user-select: none;
+      transition: filter .15s;
+    }
+
+    .boar.grufola {
+      animation: shake .13s infinite alternate;
+      background: rgba(130,76,35,.28);
+    }
+
+    .boar.scared {
+      filter: drop-shadow(0 0 10px rgba(255,255,255,.9)) saturate(1.4);
+    }
+
+    @keyframes shake {
+      from { transform: translate(-50%, -50%) rotate(-8deg) scale(1.04); }
+      to { transform: translate(-50%, -50%) rotate(8deg) scale(.98); }
+    }
+
+    .acorn {
+      position: absolute;
+      width: 34px;
+      height: 34px;
+      transform: translate(-50%, -50%);
+      display: grid;
+      place-items: center;
+      font-size: 25px;
+      z-index: 3;
+      filter: drop-shadow(0 2px 3px rgba(0,0,0,.25));
+    }
+
+    .hole {
+      position: absolute;
+      width: 42px;
+      height: 30px;
+      transform: translate(-50%, -50%) rotate(-8deg);
+      border-radius: 50%;
+      background: radial-gradient(circle, #4c2c18 0%, #75471f 46%, rgba(90,55,25,.35) 70%, transparent 72%);
+      opacity: .85;
+      z-index: 1;
+    }
+
+    .message {
+      position: absolute;
+      left: 50%;
+      top: 14px;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,.94);
+      border: 1px solid rgba(0,0,0,.08);
+      border-radius: 14px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 800;
+      box-shadow: 0 4px 12px rgba(0,0,0,.14);
+      z-index: 8;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s;
+      text-align: center;
+    }
+
+    .message.show {
+      opacity: 1;
+    }
+
+    .grubBar {
+      position: absolute;
+      width: 50px;
+      height: 7px;
+      transform: translate(-50%, -50%);
+      border-radius: 999px;
+      background: rgba(255,255,255,.85);
+      overflow: hidden;
+      border: 1px solid rgba(0,0,0,.16);
+      z-index: 5;
+      display: none;
+    }
+
+    .grubBar > div {
+      height: 100%;
+      width: 0%;
+      background: var(--danger);
+    }
+
+    footer {
+      height: 74px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      background: var(--panel);
+      box-shadow: 0 -2px 12px rgba(0,0,0,0.12);
+      z-index: 10;
+    }
+
+    button {
+      border: 0;
+      border-radius: 16px;
+      padding: 9px 12px;
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--dark);
+      background: #fff;
+      box-shadow: 0 2px 7px rgba(0,0,0,.15);
+      cursor: pointer;
+      min-width: 86px;
+    }
+
+    button.active {
+      outline: 3px solid rgba(122,75,37,.28);
+      background: #fff1d9;
+    }
+
+    button:disabled {
+      opacity: .42;
+      cursor: not-allowed;
+    }
+
+    .small {
+      font-size: 11px;
+      opacity: .75;
+      display: block;
+      font-weight: 650;
+      margin-top: 1px;
+    }
+
+    #startOverlay, #endOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: grid;
+      place-items: center;
+      background: rgba(38,51,34,.5);
+      padding: 18px;
+    }
+
+    #endOverlay {
+      display: none;
+    }
+
+    .card {
+      width: min(520px, 94vw);
+      background: rgba(255,255,255,.97);
+      border-radius: 24px;
+      padding: 20px;
+      box-shadow: 0 15px 45px rgba(0,0,0,.28);
+      text-align: center;
+    }
+
+    .card h2 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+
+    .card p {
+      margin: 8px 0;
+      font-size: 15px;
+      line-height: 1.35;
+    }
+
+    .card .big {
+      font-size: 44px;
+      margin: 4px 0 0;
+    }
+
+    .scoreLine {
+      margin: 10px auto;
+      width: min(340px, 100%);
+      text-align: left;
+      background: #f4f4ec;
+      border-radius: 16px;
+      padding: 12px;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    @media (max-width: 620px) {
+      header {
+        height: 62px;
+        padding: 7px 8px;
+      }
+      .titleBox h1 {
+        font-size: 16px;
+      }
+      .titleBox span {
+        display: none;
+      }
+      .stats {
+        gap: 4px;
+        font-size: 11px;
+      }
+      .pill {
+        padding: 4px 6px;
+      }
+      footer {
+        height: 82px;
+        flex-wrap: wrap;
+      }
+      button {
+        min-width: 74px;
+        padding: 8px 9px;
+        font-size: 12px;
+      }
+      .peony {
+        width: 40px;
+        height: 40px;
+        font-size: 28px;
+      }
+      .boar {
+        width: 50px;
+        height: 50px;
+        font-size: 39px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="gameWrap">
+    <header>
+      <div class="titleBox">
+        <h1>Ferma il grufolatore!</h1>
+        <span>Proteggi le peonie dal grufolamento del cinghiale</span>
+      </div>
+      <div class="stats">
+        <div class="pill">⏱️ <span id="time">60</span>s</div>
+        <div class="pill">🌺 <span id="saved">0</span>/<span id="total">0</span></div>
+        <div class="pill">⭐ <span id="score">0</span></div>
+      </div>
+    </header>
+
+    <main id="field">
+      <div id="msg" class="message"></div>
+      <div id="boar" class="boar">🐗</div>
+      <div id="grubBar" class="grubBar"><div></div></div>
+    </main>
+
+    <footer>
+      <button id="toolAcorn" class="active">🌰 Ghianda <span class="small"><span id="acorns">5</span> rimaste</span></button>
+      <button id="toolFence">🪵 Recinto <span class="small"><span id="fences">4</span> pezzi</span></button>
+      <button id="whistle">📣 Fischio <span class="small" id="whistleText">pronto</span></button>
+      <button id="restart">↻ Riavvia <span class="small">nuova partita</span></button>
+    </footer>
+  </div>
+
+  <div id="startOverlay">
+    <div class="card">
+      <div class="big">🐗🌺</div>
+      <h2>Ferma il grufolatore!</h2>
+      <p>Il cinghiale cerca zone dove grufolare. Usa ghiande, recinti e fischio per tenerlo lontano dalle peonie.</p>
+      <p><b>Obiettivo:</b> salva più peonie possibile in 60 secondi.</p>
+      <button id="startBtn">Inizia</button>
+    </div>
+  </div>
+
+  <div id="endOverlay">
+    <div class="card">
+      <div class="big">🌺</div>
+      <h2>Risultato</h2>
+      <div id="finalStats" class="scoreLine"></div>
+      <p>Il grufolamento del cinghiale può rivoltare il suolo e danneggiare radici, bulbi e plantule in habitat delicati.</p>
+      <button id="playAgain">Gioca ancora</button>
+    </div>
+  </div>
+
+  <script>
+    const field = document.getElementById("field");
+    const boarEl = document.getElementById("boar");
+    const grubBar = document.getElementById("grubBar");
+    const grubBarFill = grubBar.firstElementChild;
+    const msgEl = document.getElementById("msg");
+
+    const ui = {
+      time: document.getElementById("time"),
+      saved: document.getElementById("saved"),
+      total: document.getElementById("total"),
+      score: document.getElementById("score"),
+      acorns: document.getElementById("acorns"),
+      fences: document.getElementById("fences"),
+      whistleText: document.getElementById("whistleText"),
+      toolAcorn: document.getElementById("toolAcorn"),
+      toolFence: document.getElementById("toolFence"),
+      whistle: document.getElementById("whistle"),
+      restart: document.getElementById("restart"),
+      startOverlay: document.getElementById("startOverlay"),
+      endOverlay: document.getElementById("endOverlay"),
+      finalStats: document.getElementById("finalStats"),
+      startBtn: document.getElementById("startBtn"),
+      playAgain: document.getElementById("playAgain")
+    };
+
+    let W = 0, H = 0;
+    let running = false;
+    let last = 0;
+    let selectedTool = "acorn";
+
+    let peonies = [];
+    let acorns = [];
+    let fences = [];
+    let holes = [];
+
+    let boar = {};
+    let timeLeft = 60;
+    let score = 0;
+    let acornCount = 5;
+    let fenceCount = 4;
+    let whistleCooldown = 0;
+    let spawnTimer = 0;
+    let messageTimer = 0;
+
+    function resize() {
+      const r = field.getBoundingClientRect();
+      W = r.width;
+      H = r.height;
+    }
+
+    function rand(min, max) {
+      return min + Math.random() * (max - min);
+    }
+
+    function dist(a, b) {
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      return Math.sqrt(dx*dx + dy*dy);
+    }
+
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function showMsg(text) {
+      msgEl.textContent = text;
+      msgEl.classList.add("show");
+      messageTimer = 1.6;
+    }
+
+    function createDiv(cls, text, x, y) {
+      const el = document.createElement("div");
+      el.className = cls;
+      if (text) el.textContent = text;
+      el.style.left = x + "px";
+      el.style.top = y + "px";
+      field.appendChild(el);
+      return el;
+    }
+
+    function resetGame() {
+      resize();
+      peonies.forEach(p => p.el.remove());
+      acorns.forEach(a => a.el.remove());
+      fences.forEach(f => f.el.remove());
+      holes.forEach(h => h.el.remove());
+      peonies = [];
+      acorns = [];
+      fences = [];
+      holes = [];
+
+      timeLeft = 60;
+      score = 0;
+      acornCount = 5;
+      fenceCount = 4;
+      whistleCooldown = 0;
+      spawnTimer = 0;
+      messageTimer = 0;
+
+      const marginX = Math.max(50, W * 0.08);
+      const marginY = Math.max(65, H * 0.12);
+
+      for (let i = 0; i < 12; i++) {
+        const x = rand(marginX, W - marginX);
+        const y = rand(marginY + 40, H - marginY);
+        const el = createDiv("peony", "🌺", x, y);
+        peonies.push({x, y, status: "ok", grub: 0, el});
+      }
+
+      boar = {
+        x: rand(50, W - 50),
+        y: 40,
+        vx: rand(-25, 25),
+        vy: 65,
+        state: "wander",
+        target: null,
+        scared: 0,
+        grubbing: null,
+        chooseTimer: 0
+      };
+
+      boarEl.className = "boar";
+      updateBoarEl();
+      updateUI();
+    }
+
+    function startGame() {
+      resetGame();
+      running = true;
+      last = performance.now();
+      ui.startOverlay.style.display = "none";
+      ui.endOverlay.style.display = "none";
+      showMsg("Il cinghiale ha fiutato le peonie!");
+      requestAnimationFrame(loop);
+    }
+
+    function endGame() {
+      running = false;
+      const ok = peonies.filter(p => p.status === "ok").length;
+      const damaged = peonies.filter(p => p.status === "damaged").length;
+      const uprooted = peonies.filter(p => p.status === "uprooted").length;
+      const conservation = Math.max(0, Math.round((ok + damaged * 0.45) / peonies.length * 100));
+      score += ok * 40 + damaged * 10 - uprooted * 30;
+      score = Math.max(0, Math.round(score));
+
+      ui.finalStats.innerHTML = `
+        <b>Punteggio:</b> ${score}<br>
+        <b>Peonie integre:</b> ${ok}<br>
+        <b>Peonie danneggiate:</b> ${damaged}<br>
+        <b>Peonie sradicate:</b> ${uprooted}<br>
+        <b>Indice di conservazione:</b> ${conservation}/100
+      `;
+      ui.score.textContent = score;
+      ui.endOverlay.style.display = "grid";
+    }
+
+    function chooseTarget() {
+      const live = peonies.filter(p => p.status !== "uprooted");
+      if (live.length === 0) return null;
+
+      const activeAcorn = acorns.find(a => a.ttl > 0);
+      if (activeAcorn && Math.random() < 0.78) {
+        boar.state = "distracted";
+        return activeAcorn;
+      }
+
+      boar.state = "targetPeony";
+      return live[Math.floor(Math.random() * live.length)];
+    }
+
+    function updateBoar(dt) {
+      if (boar.scared > 0) {
+        boar.scared -= dt;
+        boar.state = "scared";
+      } else {
+        boar.chooseTimer -= dt;
+        if (!boar.target || boar.chooseTimer <= 0 || (boar.target.status === "uprooted")) {
+          boar.target = chooseTarget();
+          boar.chooseTimer = rand(2.0, 4.0);
+        }
+      }
+
+      if (boar.scared <= 0 && boar.target) {
+        const dx = boar.target.x - boar.x;
+        const dy = boar.target.y - boar.y;
+        const d = Math.max(1, Math.sqrt(dx*dx + dy*dy));
+        const speed = boar.state === "distracted" ? 95 : 72 + (60 - timeLeft) * 0.8;
+        boar.vx += (dx / d) * speed * dt * 2.1;
+        boar.vy += (dy / d) * speed * dt * 2.1;
+      }
+
+      boar.vx *= Math.pow(0.88, dt * 8);
+      boar.vy *= Math.pow(0.88, dt * 8);
+
+      const maxSpeed = boar.scared > 0 ? 190 : 120 + (60 - timeLeft) * 0.8;
+      const sp = Math.sqrt(boar.vx*boar.vx + boar.vy*boar.vy);
+      if (sp > maxSpeed) {
+        boar.vx = boar.vx / sp * maxSpeed;
+        boar.vy = boar.vy / sp * maxSpeed;
+      }
+
+      boar.x += boar.vx * dt;
+      boar.y += boar.vy * dt;
+
+      if (boar.x < 25 || boar.x > W - 25) {
+        boar.vx *= -1.2;
+        boar.x = clamp(boar.x, 25, W - 25);
+      }
+      if (boar.y < 25 || boar.y > H - 25) {
+        boar.vy *= -1.2;
+        boar.y = clamp(boar.y, 25, H - 25);
+      }
+
+      fences.forEach(f => {
+        const d = dist(boar, f);
+        if (d < 44) {
+          const nx = (boar.x - f.x) / Math.max(d, 1);
+          const ny = (boar.y - f.y) / Math.max(d, 1);
+          boar.vx += nx * 210 * dt;
+          boar.vy += ny * 210 * dt;
+          boar.x += nx * 1.5;
+          boar.y += ny * 1.5;
+        }
+      });
+
+      updateGrub(dt);
+      updateBoarEl();
+    }
+
+    function updateGrub(dt) {
+      let nearest = null;
+      let nearestD = 9999;
+
+      peonies.forEach(p => {
+        if (p.status === "uprooted") return;
+        const d = dist(boar, p);
+        if (d < nearestD) {
+          nearestD = d;
+          nearest = p;
+        }
+      });
+
+      if (nearest && nearestD < 36 && boar.scared <= 0) {
+        boar.grubbing = nearest;
+        boarEl.classList.add("grufola");
+        nearest.grub += dt;
+        grubBar.style.display = "block";
+        grubBar.style.left = boar.x + "px";
+        grubBar.style.top = (boar.y - 38) + "px";
+        grubBarFill.style.width = Math.min(100, nearest.grub / 2.2 * 100) + "%";
+
+        if (nearest.grub > 1.0 && nearest.status === "ok") {
+          nearest.status = "damaged";
+          nearest.el.className = "peony damaged";
+          score -= 20;
+          createHole(nearest.x + rand(-10,10), nearest.y + rand(-8,8));
+          showMsg("Peonia danneggiata dal grufolamento!");
+        }
+
+        if (nearest.grub > 2.2 && nearest.status !== "uprooted") {
+          nearest.status = "uprooted";
+          nearest.el.className = "peony uprooted";
+          nearest.el.textContent = "🕳️";
+          score -= 55;
+          createHole(nearest.x, nearest.y);
+          boar.vx += rand(-120, 120);
+          boar.vy += rand(-120, 120);
+          boar.target = null;
+          showMsg("Peonia sradicata!");
+        }
+      } else {
+        boar.grubbing = null;
+        boarEl.classList.remove("grufola");
+        grubBar.style.display = "none";
+      }
+    }
+
+    function createHole(x, y) {
+      const el = createDiv("hole", "", x, y);
+      holes.push({x, y, el});
+    }
+
+    function updateItems(dt) {
+      acorns.forEach(a => {
+        a.ttl -= dt;
+        if (dist(boar, a) < 28) {
+          a.ttl = 0;
+          score += 25;
+          showMsg("Ghianda presa: cinghiale distratto!");
+          boar.target = null;
+        }
+      });
+
+      acorns = acorns.filter(a => {
+        if (a.ttl <= 0) {
+          a.el.remove();
+          return false;
+        }
+        a.el.style.opacity = Math.min(1, a.ttl / 1.4);
+        return true;
+      });
+
+      if (acornCount < 5) {
+        spawnTimer += dt;
+        if (spawnTimer > 7) {
+          acornCount++;
+          spawnTimer = 0;
+        }
+      }
+    }
+
+    function updateBoarEl() {
+      boarEl.style.left = boar.x + "px";
+      boarEl.style.top = boar.y + "px";
+      boarEl.classList.toggle("scared", boar.scared > 0);
+    }
+
+    function updateUI() {
+      const ok = peonies.filter(p => p.status === "ok").length;
+      const damaged = peonies.filter(p => p.status === "damaged").length;
+      ui.time.textContent = Math.ceil(timeLeft);
+      ui.saved.textContent = ok + damaged;
+      ui.total.textContent = peonies.length;
+      ui.score.textContent = Math.max(0, Math.round(score));
+      ui.acorns.textContent = acornCount;
+      ui.fences.textContent = fenceCount;
+      ui.toolAcorn.disabled = acornCount <= 0;
+      ui.toolFence.disabled = fenceCount <= 0;
+      ui.whistle.disabled = whistleCooldown > 0;
+      ui.whistleText.textContent = whistleCooldown > 0 ? Math.ceil(whistleCooldown) + "s" : "pronto";
+    }
+
+    function placeAcorn(x, y) {
+      if (acornCount <= 0) {
+        showMsg("Ghiande finite: attendi la ricarica.");
+        return;
+      }
+      const el = createDiv("acorn", "🌰", x, y);
+      acorns.push({x, y, ttl: 8, el});
+      acornCount--;
+      boar.target = {x, y};
+      boar.state = "distracted";
+      showMsg("Ghianda piazzata!");
+    }
+
+    function placeFence(x, y) {
+      if (fenceCount <= 0) {
+        showMsg("Recinti finiti.");
+        return;
+      }
+      const el = createDiv("acorn", "🪵", x, y);
+      el.style.fontSize = "31px";
+      el.style.transform = `translate(-50%, -50%) rotate(${rand(-25,25)}deg)`;
+      fences.push({x, y, el});
+      fenceCount--;
+      showMsg("Recinto piazzato!");
+    }
+
+    function whistle() {
+      if (whistleCooldown > 0) return;
+      const angle = Math.atan2(boar.y - H/2, boar.x - W/2) + rand(-0.8, 0.8);
+      boar.vx = Math.cos(angle) * 180;
+      boar.vy = Math.sin(angle) * 180;
+      boar.scared = 1.5;
+      boar.target = null;
+      whistleCooldown = 7;
+      score += 10;
+      showMsg("Fischio! Grufolamento interrotto.");
+    }
+
+    function fieldPoint(evt) {
+      const r = field.getBoundingClientRect();
+      const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+      const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+      return {x: clientX - r.left, y: clientY - r.top};
+    }
+
+    function onFieldAction(evt) {
+      if (!running) return;
+      evt.preventDefault();
+      const p = fieldPoint(evt);
+
+      if (dist(p, boar) < 44) {
+        whistle();
+        updateUI();
+        return;
+      }
+
+      if (selectedTool === "acorn") placeAcorn(p.x, p.y);
+      if (selectedTool === "fence") placeFence(p.x, p.y);
+      updateUI();
+    }
+
+    function loop(now) {
+      if (!running) return;
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+
+      timeLeft -= dt;
+      score += dt * 2;
+
+      if (whistleCooldown > 0) whistleCooldown -= dt;
+
+      updateBoar(dt);
+      updateItems(dt);
+
+      if (messageTimer > 0) {
+        messageTimer -= dt;
+        if (messageTimer <= 0) msgEl.classList.remove("show");
+      }
+
+      updateUI();
+
+      if (timeLeft <= 0 || peonies.every(p => p.status === "uprooted")) {
+        endGame();
+        return;
+      }
+
+      requestAnimationFrame(loop);
+    }
+
+    function setTool(tool) {
+      selectedTool = tool;
+      ui.toolAcorn.classList.toggle("active", tool === "acorn");
+      ui.toolFence.classList.toggle("active", tool === "fence");
+    }
+
+    ui.toolAcorn.addEventListener("click", () => setTool("acorn"));
+    ui.toolFence.addEventListener("click", () => setTool("fence"));
+    ui.whistle.addEventListener("click", whistle);
+    ui.restart.addEventListener("click", startGame);
+    ui.startBtn.addEventListener("click", startGame);
+    ui.playAgain.addEventListener("click", startGame);
+
+    field.addEventListener("mousedown", onFieldAction);
+    field.addEventListener("touchstart", onFieldAction, {passive: false});
+    window.addEventListener("resize", resize);
+
+    resize();
+    resetGame();
+  </script>
+</body>
+</html>
