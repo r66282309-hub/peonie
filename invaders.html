@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Ferma il Grufolatore - Peonie Invaders</title>
+  <style>
+    :root{
+      --bg1:#101728;
+      --bg2:#1d3b2a;
+      --panel:#fff8ea;
+      --ink:#1f251d;
+      --green:#2f8f46;
+      --green2:#1f6b36;
+      --pink:#ff5dab;
+      --gold:#ffc847;
+      --danger:#c43333;
+      --brown:#5b3520;
+    }
+
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+
+    html,body{
+      margin:0;
+      min-height:100%;
+      background:
+        radial-gradient(circle at 20% 8%, rgba(255,255,255,.13), transparent 20%),
+        radial-gradient(circle at 80% 12%, rgba(255,230,160,.16), transparent 18%),
+        linear-gradient(180deg,#0d1323 0%,#192945 37%,#163923 38%,#244b2c 100%);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color:#f8f5e8;
+      overflow:hidden;
+    }
+
+    #app{
+      min-height:100vh;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      padding:10px;
+      gap:8px;
+    }
+
+    header{
+      width:min(1120px,96vw);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .title{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width:240px;
+    }
+
+    .title h1{
+      margin:0;
+      font-size:clamp(1.15rem,2.6vw,2rem);
+      line-height:1.05;
+      text-shadow:0 3px 0 rgba(0,0,0,.25);
+      letter-spacing:.3px;
+    }
+
+    .badge{
+      padding:6px 10px;
+      border-radius:999px;
+      background:rgba(255,255,255,.13);
+      border:1px solid rgba(255,255,255,.18);
+      font-weight:800;
+      font-size:.82rem;
+      white-space:nowrap;
+    }
+
+    #hud{
+      display:grid;
+      grid-template-columns:repeat(6,auto);
+      gap:6px;
+      align-items:center;
+      justify-content:end;
+      max-width:100%;
+    }
+
+    .hudBox{
+      background:rgba(255,248,234,.92);
+      color:#1d2a1d;
+      border:2px solid rgba(47,143,70,.85);
+      box-shadow:0 5px 0 rgba(0,0,0,.22);
+      border-radius:12px;
+      padding:7px 10px;
+      font-weight:900;
+      font-size:.92rem;
+      white-space:nowrap;
+    }
+
+    .hudBox span{
+      color:#a52b5d;
+    }
+
+    #stageWrap{
+      position:relative;
+      width:min(1120px,96vw);
+      aspect-ratio:16/9;
+      max-height:78vh;
+      border-radius:22px;
+      overflow:hidden;
+      border:4px solid rgba(255,248,234,.95);
+      box-shadow:
+        0 22px 60px rgba(0,0,0,.42),
+        inset 0 0 0 2px rgba(0,0,0,.25);
+      background:#111;
+    }
+
+    canvas{
+      width:100%;
+      height:100%;
+      display:block;
+      background:#111;
+      touch-action:none;
+    }
+
+    #touch{
+      position:absolute;
+      left:0;
+      right:0;
+      bottom:0;
+      display:none;
+      justify-content:space-between;
+      align-items:flex-end;
+      padding:14px;
+      pointer-events:none;
+      z-index:3;
+    }
+
+    .touchGroup{
+      display:flex;
+      gap:10px;
+      pointer-events:auto;
+    }
+
+    .touchBtn{
+      width:64px;
+      height:58px;
+      border:none;
+      border-radius:18px;
+      background:rgba(255,248,234,.82);
+      color:#1c2d1e;
+      font-size:1.45rem;
+      font-weight:1000;
+      box-shadow:0 6px 0 rgba(0,0,0,.32);
+      user-select:none;
+    }
+
+    .touchBtn.fire{
+      width:82px;
+      height:66px;
+      border-radius:22px;
+      background:rgba(255,200,71,.9);
+    }
+
+    #overlay{
+      position:fixed;
+      inset:0;
+      background:
+        radial-gradient(circle at 50% 30%, rgba(255,255,255,.1), transparent 25%),
+        rgba(0,0,0,.66);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:20;
+      padding:18px;
+    }
+
+    #panel{
+      width:min(680px,94vw);
+      background:linear-gradient(180deg,#fffdf5,#ffeec7);
+      color:var(--ink);
+      border:4px solid #2f6f3f;
+      border-radius:26px;
+      padding:24px;
+      text-align:center;
+      box-shadow:0 22px 50px rgba(0,0,0,.45);
+    }
+
+    #panel h2{
+      margin:0 0 10px;
+      font-size:clamp(1.55rem,4vw,2.5rem);
+      color:#234e2f;
+    }
+
+    #panel p{
+      margin:10px auto;
+      line-height:1.45;
+      max-width:560px;
+    }
+
+    .rules{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin:16px auto 8px;
+      max-width:610px;
+      text-align:left;
+    }
+
+    .rule{
+      background:rgba(255,255,255,.62);
+      border:1px solid rgba(47,111,63,.25);
+      border-radius:14px;
+      padding:10px;
+      font-size:.94rem;
+    }
+
+    button.main{
+      border:none;
+      background:linear-gradient(180deg,#39a852,#207337);
+      color:white;
+      font-size:1.05rem;
+      font-weight:1000;
+      padding:13px 20px;
+      border-radius:16px;
+      cursor:pointer;
+      box-shadow:0 6px 0 #145122;
+      margin:10px 5px 0;
+    }
+
+    button.secondary{
+      border:none;
+      background:linear-gradient(180deg,#a86539,#733b20);
+      color:white;
+      font-size:1.05rem;
+      font-weight:1000;
+      padding:13px 20px;
+      border-radius:16px;
+      cursor:pointer;
+      box-shadow:0 6px 0 #512714;
+      margin:10px 5px 0;
+    }
+
+    .tiny{
+      font-size:.9rem;
+      opacity:.85;
+    }
+
+    @media (max-width:760px){
+      #hud{
+        grid-template-columns:repeat(3,auto);
+        justify-content:start;
+      }
+      .hudBox{font-size:.78rem;padding:6px 8px}
+      #stageWrap{width:100vw;border-radius:0;border-left:none;border-right:none}
+      #touch{display:flex}
+      .rules{grid-template-columns:1fr}
+      header{width:96vw}
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="title">
+        <div class="badge">ARCADE SARDO</div>
+        <h1>🌸 Ferma il Grufolatore</h1>
+      </div>
+      <div id="hud">
+        <div class="hudBox">Punti <span id="score">0</span></div>
+        <div class="hudBox">Record <span id="best">0</span></div>
+        <div class="hudBox">Vite <span id="lives">3</span></div>
+        <div class="hudBox">Peonie <span id="peonies">6</span></div>
+        <div class="hudBox">Ondata <span id="wave">1</span></div>
+        <div class="hudBox">Combo <span id="combo">x1</span></div>
+      </div>
+    </header>
+
+    <div id="stageWrap">
+      <canvas id="game" width="1120" height="630"></canvas>
+      <div id="touch">
+        <div class="touchGroup">
+          <button class="touchBtn" id="leftBtn">⬅</button>
+          <button class="touchBtn" id="rightBtn">➡</button>
+        </div>
+        <div class="touchGroup">
+          <button class="touchBtn fire" id="fireBtn">🌰</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="overlay">
+    <div id="panel">
+      <h2>🐗🌰 Proteggi le peonie</h2>
+      <p>
+        I cinghiali grufolatori scendono a ondate. Tu sei lo scoiattolo guardiano:
+        muoviti, spara ghiande e impedisci che raggiungano il prato.
+      </p>
+      <div class="rules">
+        <div class="rule"><strong>Comandi:</strong><br>← → o A/D per muoverti, Spazio per sparare, P per pausa.</div>
+        <div class="rule"><strong>Difficoltà:</strong><br>cresce all'aumentare del livello.</div>
+        <div class="rule"><strong>Power-up:</strong><br>ghianda tripla, scudo, rallentamento, vita extra.</div>
+        <div class="rule"><strong>Obiettivo:</strong><br>tieni vive le peonie e supera più ondate possibile.</div>
+      </div>
+      <button class="main" id="startBtn">Inizia</button>
+      <button class="secondary" id="hardBtn">Elite mode</button>
+      <p class="tiny">Suggerimento: non sprecare colpi</p>
+    </div>
+  </div>
+
+  <script>
+    "use strict";
+
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+
+    const W = canvas.width;
+    const H = canvas.height;
+
+    const ui = {
+      score: document.getElementById("score"),
+      best: document.getElementById("best"),
+      lives: document.getElementById("lives"),
+      peonies: document.getElementById("peonies"),
+      wave: document.getElementById("wave"),
+      combo: document.getElementById("combo"),
+      overlay: document.getElementById("overlay"),
+      panel: document.getElementById("panel"),
+      startBtn: document.getElementById("startBtn"),
+      hardBtn: document.getElementById("hardBtn")
+    };
+
+    const keys = {
+      left:false,
+      right:false,
+      fire:false,
+      pause:false
+    };
+
+    let audioCtx = null;
+    let gameOn = false;
+    let paused = false;
+    let hardMode = false;
+    let raf = 0;
+    let lastTime = 0;
+
+    let score = 0;
+    let best = Number(localStorage.getItem("peonie_invaders_best") || 0);
+    let lives = 3;
+    let wave = 1;
+    let combo = 1;
+    let comboTimer = 0;
+    let shake = 0;
+    let flash = 0;
+    let slowMo = 0;
+    let bossIncoming = false;
+
+    let bullets = [];
+    let enemyBullets = [];
+    let enemies = [];
+    let peonies = [];
+    let particles = [];
+    let powerups = [];
+    let texts = [];
+    let stars = [];
+    let clouds = [];
+
+    const player = {
+      x: W/2,
+      y: H - 86,
+      w: 58,
+      h: 48,
+      speed: 390,
+      cooldown: 0,
+      inv: 0,
+      shield: 0,
+      triple: 0
+    };
+
+    const colors = {
+      sky1:"#10213b",
+      sky2:"#295d81",
+      grass1:"#2b6c36",
+      grass2:"#1d4e2a",
+      soil:"#6b4327",
+      soil2:"#4a2d1d",
+      peony:"#ff5dab",
+      peony2:"#f32288",
+      leaf:"#2e9d4c",
+      acorn:"#9a612c",
+      acornCap:"#5b351b",
+      boar:"#5f3a28",
+      boarDark:"#372018",
+      boarLight:"#8a5a3c",
+      tusk:"#fff1d0"
+    };
+
+    ui.best.textContent = best;
+
+    function rnd(a,b){ return a + Math.random()*(b-a); }
+    function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+    function sound(type){
+      try{
+        if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.connect(g); g.connect(audioCtx.destination);
+
+        const t = audioCtx.currentTime;
+        let f1 = 440, f2 = 220, dur = .08, waveType = "square", vol = .05;
+
+        if(type === "shoot"){ f1=520; f2=260; dur=.055; vol=.035; waveType="triangle"; }
+        if(type === "hit"){ f1=140; f2=60; dur=.10; vol=.07; waveType="sawtooth"; }
+        if(type === "power"){ f1=660; f2=990; dur=.16; vol=.06; waveType="sine"; }
+        if(type === "hurt"){ f1=180; f2=75; dur=.22; vol=.08; waveType="square"; }
+        if(type === "boss"){ f1=85; f2=55; dur=.35; vol=.09; waveType="sawtooth"; }
+
+        o.type = waveType;
+        o.frequency.setValueAtTime(f1,t);
+        o.frequency.exponentialRampToValueAtTime(Math.max(20,f2),t+dur);
+        g.gain.setValueAtTime(vol,t);
+        g.gain.exponentialRampToValueAtTime(.001,t+dur);
+        o.start(t);
+        o.stop(t+dur+.02);
+      }catch(e){}
+    }
+
+    function initDecor(){
+      stars = [];
+      clouds = [];
+      for(let i=0;i<90;i++){
+        stars.push({x:rnd(0,W), y:rnd(0,H*.38), r:rnd(.5,1.8), a:rnd(.25,.85), s:rnd(.2,1.1)});
+      }
+      for(let i=0;i<8;i++){
+        clouds.push({x:rnd(-200,W), y:rnd(30,170), s:rnd(.6,1.2), v:rnd(5,18)});
+      }
+    }
+
+    function initPeonies(){
+      peonies = [];
+      const n = hardMode ? 5 : 6;
+      const spacing = W/(n+1);
+      for(let i=0;i<n;i++){
+        peonies.push({
+          x: spacing*(i+1),
+          y: H-32,
+          hp: hardMode ? 1 : 2,
+          sway:rnd(0,Math.PI*2)
+        });
+      }
+    }
+
+    function reset(){
+      score = 0;
+      lives = hardMode ? 2 : 3;
+      wave = 1;
+      combo = 1;
+      comboTimer = 0;
+      shake = 0;
+      flash = 0;
+      slowMo = 0;
+      bossIncoming = false;
+
+      bullets = [];
+      enemyBullets = [];
+      enemies = [];
+      particles = [];
+      powerups = [];
+      texts = [];
+
+      player.x = W/2;
+      player.cooldown = 0;
+      player.inv = 1200;
+      player.shield = 0;
+      player.triple = 0;
+
+      initDecor();
+      initPeonies();
+      spawnWave();
+      syncHud();
+    }
+
+    function syncHud(){
+      ui.score.textContent = score;
+      ui.best.textContent = best;
+      ui.lives.textContent = lives;
+      ui.peonies.textContent = peonies.filter(p=>p.hp>0).length;
+      ui.wave.textContent = wave;
+      ui.combo.textContent = "x" + combo;
+    }
+
+    function spawnWave(){
+      enemies = [];
+      enemyBullets = [];
+      bullets = bullets.filter(b => b.y > H*.45);
+
+      const bossWave = wave % 5 === 0;
+      bossIncoming = bossWave;
+
+      if(bossWave){
+        sound("boss");
+        texts.push({x:W/2,y:H*.24,text:"ARRIVA SU SIRBONI!",life:1700,size:38,color:"#ffd36a"});
+        enemies.push({
+          type:"boss",
+          x:W/2-95,
+          y:52,
+          w:190,
+          h:104,
+          hp: 42 + wave*6 + (hardMode?25:0),
+          maxHp: 42 + wave*6 + (hardMode?25:0),
+          vx: 75 + wave*7,
+          vy: 13 + wave,
+          shoot: 700,
+          bob:0,
+          rage:false
+        });
+        return;
+      }
+
+      const rows = Math.min(5, 3 + Math.floor(wave/2));
+      const cols = Math.min(10, 7 + Math.floor(wave/3));
+      const marginX = 105;
+      const gapX = (W - marginX*2)/(cols-1 || 1);
+      const startY = 70;
+      const gapY = 58;
+      const hpBase = 1 + Math.floor(wave/4);
+
+      for(let r=0;r<rows;r++){
+        for(let c=0;c<cols;c++){
+          const fast = Math.random() < .16 + wave*.012;
+          const armored = Math.random() < .08 + wave*.01;
+          const zig = Math.random() < .18 + wave*.015;
+          enemies.push({
+            type: armored ? "armored" : fast ? "fast" : zig ? "zig" : "boar",
+            x: marginX + c*gapX - 25,
+            y: startY + r*gapY,
+            baseX: marginX + c*gapX - 25,
+            w: armored ? 58 : 52,
+            h: armored ? 42 : 38,
+            hp: hpBase + (armored?2:0),
+            maxHp: hpBase + (armored?2:0),
+            vx: 0,
+            vy: 0,
+            row:r,
+            phase:rnd(0,Math.PI*2),
+            shoot:rnd(800,2300),
+            dir:1
+          });
+        }
+      }
+    }
+
+    function addScore(points, x, y){
+      score += Math.floor(points * combo);
+      if(score > best){
+        best = score;
+        localStorage.setItem("peonie_invaders_best", String(best));
+      }
+      texts.push({x,y,text:"+"+Math.floor(points*combo),life:650,size:18,color:"#fff8bd"});
+      comboTimer = 1600;
+      if(combo < 8) combo++;
+      syncHud();
+    }
+
+    function shoot(){
+      if(player.cooldown > 0) return;
+      const speed = 680;
+      bullets.push({x:player.x, y:player.y-30, vx:0, vy:-speed, r:6, dmg:1, kind:"acorn"});
+      if(player.triple > 0){
+        bullets.push({x:player.x-12, y:player.y-28, vx:-130, vy:-speed, r:5, dmg:1, kind:"acorn"});
+        bullets.push({x:player.x+12, y:player.y-28, vx:130, vy:-speed, r:5, dmg:1, kind:"acorn"});
+      }
+      player.cooldown = player.triple > 0 ? 125 : 175;
+      sound("shoot");
+    }
+
+    function hitCircleRect(cx,cy,r,rect){
+      const tx = clamp(cx, rect.x, rect.x+rect.w);
+      const ty = clamp(cy, rect.y, rect.y+rect.h);
+      const dx = cx-tx, dy=cy-ty;
+      return dx*dx + dy*dy <= r*r;
+    }
+
+    function rects(a,b){
+      return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+    }
+
+    function damagePeony(x, amount=1){
+      let alive = peonies.filter(p=>p.hp>0);
+      if(!alive.length) return;
+      alive.sort((a,b)=>Math.abs(a.x-x)-Math.abs(b.x-x));
+      const p = alive[0];
+      p.hp -= amount;
+      burst(p.x,p.y-30,"#ff5dab",18);
+      shake = Math.max(shake, 10);
+      flash = 180;
+      if(p.hp <= 0){
+        texts.push({x:p.x,y:p.y-70,text:"PEONIA DIVELTA!",life:1100,size:17,color:"#ffb0d3"});
+        sound("hurt");
+      }
+      syncHud();
+      if(peonies.filter(pp=>pp.hp>0).length <= 0) end(false,"I cinghiali hanno devastato il prato.");
+    }
+
+    function hurtPlayer(){
+      if(player.inv > 0 || player.shield > 0){
+        if(player.shield > 0){
+          player.shield = Math.max(0, player.shield - 900);
+          burst(player.x,player.y,"#8ee6ff",22);
+        }
+        return;
+      }
+      lives--;
+      player.inv = 1700;
+      shake = 18;
+      flash = 260;
+      burst(player.x,player.y,"#ff564a",24);
+      sound("hurt");
+      syncHud();
+      if(lives <= 0) end(false,"Lo scoiattolo guardiano è stato travolto.");
+    }
+
+    function burst(x,y,color,n){
+      for(let i=0;i<n;i++){
+        particles.push({
+          x,y,
+          vx:rnd(-230,230),
+          vy:rnd(-230,160),
+          g:rnd(220,420),
+          r:rnd(2,5),
+          life:rnd(360,820),
+          max:820,
+          color
+        });
+      }
+    }
+
+    function maybePowerup(x,y){
+      const chance = hardMode ? .13 : .18;
+      if(Math.random() > chance) return;
+      const kinds = ["triple","shield","slow","life"];
+      const kind = kinds[Math.floor(Math.random()*kinds.length)];
+      powerups.push({x,y,w:32,h:32,kind,vy:110,spin:0});
+    }
+
+    function update(dt){
+      const factor = slowMo > 0 ? .55 : 1;
+      const eDt = dt * factor;
+
+      if(keys.left) player.x -= player.speed*dt;
+      if(keys.right) player.x += player.speed*dt;
+      player.x = clamp(player.x, 34, W-34);
+
+      if(keys.fire) shoot();
+
+      player.cooldown = Math.max(0, player.cooldown - dt*1000);
+      player.inv = Math.max(0, player.inv - dt*1000);
+      player.shield = Math.max(0, player.shield - dt*1000);
+      player.triple = Math.max(0, player.triple - dt*1000);
+      slowMo = Math.max(0, slowMo - dt*1000);
+      shake = Math.max(0, shake - dt*30);
+      flash = Math.max(0, flash - dt*1000);
+
+      comboTimer -= dt*1000;
+      if(comboTimer <= 0){
+        combo = 1;
+        comboTimer = 0;
+      }
+
+      for(const c of clouds){
+        c.x += c.v*dt;
+        if(c.x > W+170){ c.x = -220; c.y = rnd(35,170); }
+      }
+
+      for(let i=bullets.length-1;i>=0;i--){
+        const b = bullets[i];
+        b.x += b.vx*dt;
+        b.y += b.vy*dt;
+        if(b.y < -30 || b.x < -30 || b.x > W+30){ bullets.splice(i,1); continue; }
+
+        for(let j=enemies.length-1;j>=0;j--){
+          const e = enemies[j];
+          if(hitCircleRect(b.x,b.y,b.r,e)){
+            bullets.splice(i,1);
+            e.hp -= b.dmg;
+            burst(b.x,b.y,"#d59a4b",8);
+            sound("hit");
+
+            if(e.hp <= 0){
+              burst(e.x+e.w/2,e.y+e.h/2,e.type==="boss"?"#ba5a28":"#704326", e.type==="boss"?75:22);
+              maybePowerup(e.x+e.w/2,e.y+e.h/2);
+              addScore(e.type==="boss" ? 600 : e.type==="armored" ? 45 : e.type==="fast" ? 35 : 30, e.x+e.w/2, e.y);
+              enemies.splice(j,1);
+              shake = Math.max(shake, e.type==="boss"?18:5);
+              if(e.type==="boss"){
+                texts.push({x:W/2,y:H*.28,text:"BOSS RESPINTO!",life:1600,size:38,color:"#fff0a8"});
+                wave++;
+                setTimeout(()=>{ if(gameOn) spawnWave(); syncHud(); },650);
+              }
+            }
+            break;
+          }
+        }
+      }
+
+      updateEnemies(eDt);
+
+      for(let i=enemyBullets.length-1;i>=0;i--){
+        const s = enemyBullets[i];
+        s.x += s.vx*eDt;
+        s.y += s.vy*eDt;
+        s.rot += eDt*6;
+        if(s.y > H+50 || s.x < -50 || s.x > W+50){ enemyBullets.splice(i,1); continue; }
+
+        if(hitCircleRect(s.x,s.y,s.r,{x:player.x-player.w/2,y:player.y-player.h/2,w:player.w,h:player.h})){
+          enemyBullets.splice(i,1);
+          hurtPlayer();
+          continue;
+        }
+
+        for(const p of peonies){
+          if(p.hp <= 0) continue;
+          if(hitCircleRect(s.x,s.y,s.r,{x:p.x-22,y:p.y-58,w:44,h:58})){
+            enemyBullets.splice(i,1);
+            damagePeony(p.x,1);
+            break;
+          }
+        }
+      }
+
+      for(let i=powerups.length-1;i>=0;i--){
+        const p = powerups[i];
+        p.y += p.vy*dt;
+        p.spin += dt*5;
+        if(p.y > H+40){ powerups.splice(i,1); continue; }
+        if(rects({x:p.x-p.w/2,y:p.y-p.h/2,w:p.w,h:p.h},{x:player.x-player.w/2,y:player.y-player.h/2,w:player.w,h:player.h})){
+          applyPower(p.kind);
+          powerups.splice(i,1);
+        }
+      }
+
+      for(let i=particles.length-1;i>=0;i--){
+        const p = particles[i];
+        p.life -= dt*1000;
+        p.x += p.vx*dt;
+        p.y += p.vy*dt;
+        p.vy += p.g*dt;
+        if(p.life <= 0) particles.splice(i,1);
+      }
+
+      for(let i=texts.length-1;i>=0;i--){
+        const t = texts[i];
+        t.life -= dt*1000;
+        t.y -= dt*34;
+        if(t.life <= 0) texts.splice(i,1);
+      }
+
+      if(enemies.length === 0 && gameOn){
+        wave++;
+        texts.push({x:W/2,y:H*.26,text:"ONDATA RESPINTA!",life:1200,size:36,color:"#fff5a6"});
+        setTimeout(()=>{ if(gameOn) spawnWave(); syncHud(); },550);
+      }
+
+      syncHud();
+    }
+
+    function updateEnemies(dt){
+      const base = hardMode ? 1.28 : 1;
+      const living = enemies.length;
+      for(const e of enemies){
+        if(e.type === "boss"){
+          e.bob += dt*2.4;
+          e.x += e.vx*dt;
+          e.y += Math.sin(e.bob)*10*dt + e.vy*dt*.2;
+
+          if(e.x < 30 || e.x+e.w > W-30){
+            e.vx *= -1;
+            e.y += 17;
+          }
+
+          if(!e.rage && e.hp < e.maxHp*.45){
+            e.rage = true;
+            e.vx *= 1.45;
+            e.shoot *= .65;
+            texts.push({x:W/2,y:H*.31,text:"SU SIRBONI SI ARRABBIA!",life:1300,size:28,color:"#ffb06a"});
+          }
+
+          e.shoot -= dt*1000;
+          if(e.shoot <= 0){
+            const count = e.rage ? 5 : 3;
+            for(let k=0;k<count;k++){
+              enemyBullets.push({
+                x:e.x+e.w/2 + (k-(count-1)/2)*28,
+                y:e.y+e.h*.76,
+                vx:(k-(count-1)/2)*80,
+                vy:230 + wave*13,
+                r:8,
+                rot:0,
+                kind:"clod"
+              });
+            }
+            e.shoot = (e.rage ? 500 : 780) - wave*10;
+          }
+
+          if(e.y+e.h > H-96){
+            damagePeony(e.x+e.w/2,2);
+            e.y = 42;
+          }
+          continue;
+        }
+
+        const speedDown = (8 + wave*1.8) * base;
+        const speedSide = (28 + wave*5) * base;
+
+        e.phase += dt*(1.8 + wave*.08);
+
+        if(e.type === "zig"){
+          e.x = e.baseX + Math.sin(e.phase)*38;
+          e.y += speedDown*dt*1.25;
+        }else if(e.type === "fast"){
+          e.x += Math.sin(e.phase*1.4)*speedSide*dt*.7;
+          e.y += speedDown*dt*1.7;
+        }else if(e.type === "armored"){
+          e.x += Math.sin(e.phase)*speedSide*dt*.28;
+          e.y += speedDown*dt*.82;
+        }else{
+          e.x += Math.sin(e.phase)*speedSide*dt*.38;
+          e.y += speedDown*dt;
+        }
+
+        e.shoot -= dt*1000;
+        const shootChanceBoost = hardMode ? .72 : 1;
+        if(e.shoot <= 0 && Math.random() < .18 + wave*.018){
+          enemyBullets.push({
+            x:e.x+e.w/2,
+            y:e.y+e.h,
+            vx:rnd(-35,35),
+            vy:(190 + wave*13) * base,
+            r:7,
+            rot:0,
+            kind:"clod"
+          });
+          e.shoot = rnd(900,2100) * shootChanceBoost;
+        }
+
+        if(e.y + e.h > H-78){
+          damagePeony(e.x+e.w/2, e.type==="armored"?2:1);
+          e.y = -999;
+          e.hp = 0;
+        }
+      }
+      enemies = enemies.filter(e=>e.hp>0 && e.y>-500);
+    }
+
+    function applyPower(kind){
+      sound("power");
+      if(kind === "triple"){
+        player.triple = 8500;
+        texts.push({x:player.x,y:player.y-60,text:"TRIPLA GHIANDA!",life:1000,size:20,color:"#ffd36a"});
+      }
+      if(kind === "shield"){
+        player.shield = 7500;
+        texts.push({x:player.x,y:player.y-60,text:"SCUDO DI CORTECCIA!",life:1000,size:20,color:"#98f0ff"});
+      }
+      if(kind === "slow"){
+        slowMo = 5200;
+        texts.push({x:player.x,y:player.y-60,text:"CINGHIALI RALLENTATI!",life:1000,size:20,color:"#b9ff9d"});
+      }
+      if(kind === "life"){
+        lives = Math.min(5,lives+1);
+        texts.push({x:player.x,y:player.y-60,text:"+1 VITA!",life:1000,size:20,color:"#ffb2d4"});
+      }
+      syncHud();
+    }
+
+    function draw(){
+      ctx.save();
+      if(shake > 0){
+        ctx.translate(rnd(-shake,shake), rnd(-shake,shake));
+      }
+
+      drawWorld();
+
+      for(const p of peonies) drawPeony(p);
+      for(const pu of powerups) drawPower(pu);
+      for(const e of enemies) drawBoar(e);
+      for(const b of bullets) drawAcorn(b);
+      for(const s of enemyBullets) drawClod(s);
+      drawPlayer();
+
+      drawParticles();
+      drawTexts();
+
+      if(slowMo > 0){
+        ctx.fillStyle = "rgba(120,210,255,.08)";
+        ctx.fillRect(0,0,W,H);
+      }
+      if(flash > 0){
+        ctx.fillStyle = "rgba(255,80,80," + Math.min(.18, flash/1600) + ")";
+        ctx.fillRect(0,0,W,H);
+      }
+
+      ctx.restore();
+
+      if(paused){
+        ctx.fillStyle = "rgba(0,0,0,.45)";
+        ctx.fillRect(0,0,W,H);
+        ctx.fillStyle = "#fff8ea";
+        ctx.font = "900 58px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillText("PAUSA", W/2, H/2);
+      }
+    }
+
+    function drawWorld(){
+      const sky = ctx.createLinearGradient(0,0,0,H*.65);
+      sky.addColorStop(0,"#0d1428");
+      sky.addColorStop(.55,"#223b63");
+      sky.addColorStop(1,"#5890a3");
+      ctx.fillStyle = sky;
+      ctx.fillRect(0,0,W,H);
+
+      for(const s of stars){
+        ctx.globalAlpha = s.a + Math.sin(performance.now()/1000*s.s)*.12;
+        ctx.fillStyle = "#fff7c4";
+        ctx.beginPath();
+        ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      for(const c of clouds) drawCloud(c.x,c.y,c.s);
+
+      // Hills
+      ctx.fillStyle = "#213d2b";
+      ctx.beginPath();
+      ctx.moveTo(0,H*.58);
+      for(let x=0;x<=W;x+=80){
+        ctx.lineTo(x,H*.56 + Math.sin(x*.012)*26);
+      }
+      ctx.lineTo(W,H);
+      ctx.lineTo(0,H);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = "#2d7040";
+      ctx.fillRect(0,H*.61,W,H*.39);
+
+      // Soil band
+      ctx.fillStyle = colors.soil;
+      ctx.fillRect(0,H-86,W,86);
+      ctx.fillStyle = colors.soil2;
+      for(let x=0;x<W;x+=42){
+        ctx.fillRect(x,H-78+rnd(-1,1),24,4);
+      }
+
+      // Fence
+      ctx.strokeStyle = "rgba(238,204,139,.5)";
+      ctx.lineWidth = 4;
+      for(let x=24;x<W;x+=58){
+        ctx.beginPath();
+        ctx.moveTo(x,H-122);
+        ctx.lineTo(x,H-82);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.moveTo(0,H-111);
+      ctx.lineTo(W,H-111);
+      ctx.moveTo(0,H-94);
+      ctx.lineTo(W,H-94);
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(255,248,234,.9)";
+      roundRect(18,H-64,270,34,12,true,false);
+      ctx.fillStyle = "#254028";
+      ctx.font = "900 17px system-ui";
+      ctx.textAlign = "left";
+      ctx.fillText("Prato delle peonie selvatiche", 32, H-42);
+    }
+
+    function drawCloud(x,y,s){
+      ctx.fillStyle = "rgba(255,255,255,.18)";
+      ctx.beginPath();
+      ctx.arc(x,y,30*s,0,Math.PI*2);
+      ctx.arc(x+34*s,y-12*s,38*s,0,Math.PI*2);
+      ctx.arc(x+75*s,y,30*s,0,Math.PI*2);
+      ctx.arc(x+38*s,y+12*s,42*s,0,Math.PI*2);
+      ctx.fill();
+    }
+
+    function drawPlayer(){
+      const blink = player.inv > 0 && Math.floor(performance.now()/90)%2===0;
+      if(blink) ctx.globalAlpha = .45;
+
+      // shield
+      if(player.shield > 0){
+        ctx.strokeStyle = "rgba(142,230,255,.85)";
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(player.x,player.y-5,48 + Math.sin(performance.now()/120)*4,0,Math.PI*2);
+        ctx.stroke();
+      }
+
+      // tail
+      ctx.strokeStyle = "#8c5b35";
+      ctx.lineWidth = 14;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.arc(player.x+34,player.y-8,29,Math.PI*.38,Math.PI*1.55);
+      ctx.stroke();
+      ctx.lineWidth = 7;
+      ctx.strokeStyle = "#c28a50";
+      ctx.beginPath();
+      ctx.arc(player.x+34,player.y-8,20,Math.PI*.42,Math.PI*1.50);
+      ctx.stroke();
+
+      // legs
+      ctx.fillStyle = "#4f2e1e";
+      roundRect(player.x-26,player.y+14,18,15,6,true,false);
+      roundRect(player.x+8,player.y+14,18,15,6,true,false);
+
+      // body
+      ctx.fillStyle = "#8b5d38";
+      roundRect(player.x-28,player.y-25,56,45,18,true,false);
+      ctx.fillStyle = "#c79056";
+      roundRect(player.x-15,player.y-13,30,28,13,true,false);
+
+      // head
+      ctx.fillStyle = "#8b5d38";
+      ctx.beginPath();
+      ctx.arc(player.x,player.y-37,22,0,Math.PI*2);
+      ctx.fill();
+
+      // ears
+      ctx.fillStyle = "#72482d";
+      ctx.beginPath();
+      ctx.arc(player.x-15,player.y-56,8,0,Math.PI*2);
+      ctx.arc(player.x+15,player.y-56,8,0,Math.PI*2);
+      ctx.fill();
+
+      // eyes
+      ctx.fillStyle = "#111";
+      ctx.beginPath();
+      ctx.arc(player.x-7,player.y-40,3,0,Math.PI*2);
+      ctx.arc(player.x+7,player.y-40,3,0,Math.PI*2);
+      ctx.fill();
+
+      // acorn launcher
+      ctx.fillStyle = "#3d2416";
+      roundRect(player.x-7,player.y-66,14,26,5,true,false);
+      ctx.fillStyle = "#e2b56b";
+      roundRect(player.x-9,player.y-68,18,6,3,true,false);
+
+      ctx.globalAlpha = 1;
+    }
+
+    function drawBoar(e){
+      if(e.type === "boss") return drawBoss(e);
+
+      const x=e.x, y=e.y, w=e.w, h=e.h;
+      const bob = Math.sin(e.phase*5)*2;
+
+      const body = e.type==="fast" ? "#6f4228" : e.type==="armored" ? "#4c4039" : e.type==="zig" ? "#70452c" : colors.boar;
+      const back = e.type==="armored" ? "#303238" : colors.boarDark;
+
+      // shadow
+      ctx.fillStyle = "rgba(0,0,0,.18)";
+      ctx.beginPath();
+      ctx.ellipse(x+w/2,y+h+4,w*.42,7,0,0,Math.PI*2);
+      ctx.fill();
+
+      // body
+      ctx.fillStyle = body;
+      roundRect(x+5,y+9+bob,w-10,h-12,15,true,false);
+
+      // back bristles
+      ctx.fillStyle = back;
+      ctx.beginPath();
+      ctx.moveTo(x+9,y+12+bob);
+      for(let i=0;i<7;i++){
+        ctx.lineTo(x+12+i*(w-24)/6,y+2+bob+(i%2)*5);
+      }
+      ctx.lineTo(x+w-7,y+13+bob);
+      ctx.closePath();
+      ctx.fill();
+
+      // head and snout
+      ctx.fillStyle = colors.boarLight;
+      ctx.beginPath();
+      ctx.arc(x+w*.30,y+h*.55+bob,15,0,Math.PI*2);
+      ctx.fill();
+
+      ctx.fillStyle = "#9a6a49";
+      roundRect(x+w*.19,y+h*.52+bob,24,14,8,true,false);
+
+      // ears
+      ctx.fillStyle = colors.boarDark;
+      ctx.beginPath();
+      ctx.moveTo(x+w*.22,y+h*.22+bob);
+      ctx.lineTo(x+w*.29,y+h*.03+bob);
+      ctx.lineTo(x+w*.34,y+h*.29+bob);
+      ctx.closePath();
+      ctx.moveTo(x+w*.38,y+h*.23+bob);
+      ctx.lineTo(x+w*.49,y+h*.06+bob);
+      ctx.lineTo(x+w*.47,y+h*.33+bob);
+      ctx.closePath();
+      ctx.fill();
+
+      // legs
+      ctx.strokeStyle = "#28170f";
+      ctx.lineWidth = 5;
+      ctx.lineCap = "round";
+      for(const lx of [.25,.43,.62,.78]){
+        ctx.beginPath();
+        ctx.moveTo(x+w*lx,y+h*.74+bob);
+        ctx.lineTo(x+w*lx + Math.sin(e.phase*7+lx)*3,y+h+2+bob);
+        ctx.stroke();
+      }
+
+      // eye
+      ctx.fillStyle = "#111";
+      ctx.beginPath();
+      ctx.arc(x+w*.28,y+h*.47+bob,2.6,0,Math.PI*2);
+      ctx.fill();
+
+      // nostrils
+      ctx.fillStyle = "#21130c";
+      ctx.beginPath();
+      ctx.arc(x+w*.28,y+h*.64+bob,1.8,0,Math.PI*2);
+      ctx.arc(x+w*.38,y+h*.64+bob,1.8,0,Math.PI*2);
+      ctx.fill();
+
+      // tusks
+      ctx.strokeStyle = colors.tusk;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(x+w*.22,y+h*.67+bob);
+      ctx.quadraticCurveTo(x+w*.12,y+h*.73+bob,x+w*.13,y+h*.59+bob);
+      ctx.moveTo(x+w*.40,y+h*.67+bob);
+      ctx.quadraticCurveTo(x+w*.50,y+h*.74+bob,x+w*.49,y+h*.59+bob);
+      ctx.stroke();
+
+      // hp bar for tough enemies
+      if(e.maxHp > 1){
+        ctx.fillStyle = "rgba(0,0,0,.35)";
+        roundRect(x+5,y-8,w-10,5,3,true,false);
+        ctx.fillStyle = e.type==="armored" ? "#a9c2d0" : "#ffb84e";
+        roundRect(x+5,y-8,(w-10)*(e.hp/e.maxHp),5,3,true,false);
+      }
+    }
+
+    function drawBoss(e){
+      const x=e.x, y=e.y, w=e.w, h=e.h;
+      const t = performance.now()/160;
+      const rageColor = e.rage ? "#7d2e20" : "#67402b";
+
+      ctx.fillStyle = "rgba(0,0,0,.25)";
+      ctx.beginPath();
+      ctx.ellipse(x+w/2,y+h+8,w*.44,13,0,0,Math.PI*2);
+      ctx.fill();
+
+      // huge body
+      ctx.fillStyle = rageColor;
+      roundRect(x+16,y+25,w-28,h-34,34,true,false);
+
+      // fur ridge
+      ctx.fillStyle = e.rage ? "#2a1510" : "#3b2117";
+      ctx.beginPath();
+      ctx.moveTo(x+28,y+32);
+      for(let i=0;i<11;i++){
+        ctx.lineTo(x+32+i*(w-65)/10,y+5+Math.sin(t+i)*5);
+      }
+      ctx.lineTo(x+w-30,y+34);
+      ctx.closePath();
+      ctx.fill();
+
+      // head
+      ctx.fillStyle = e.rage ? "#8b4935" : "#8a5c3e";
+      ctx.beginPath();
+      ctx.arc(x+w*.31,y+h*.58,38,0,Math.PI*2);
+      ctx.fill();
+
+      // snout
+      ctx.fillStyle = "#af7651";
+      roundRect(x+w*.18,y+h*.57,58,30,15,true,false);
+
+      // ears
+      ctx.fillStyle = "#2f1b13";
+      ctx.beginPath();
+      ctx.moveTo(x+w*.20,y+h*.25);
+      ctx.lineTo(x+w*.28,y+h*.02);
+      ctx.lineTo(x+w*.36,y+h*.31);
+      ctx.closePath();
+      ctx.moveTo(x+w*.42,y+h*.25);
+      ctx.lineTo(x+w*.55,y+h*.04);
+      ctx.lineTo(x+w*.53,y+h*.34);
+      ctx.closePath();
+      ctx.fill();
+
+      // eyes angry
+      ctx.strokeStyle = "#190b08";
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(x+w*.23,y+h*.47);
+      ctx.lineTo(x+w*.31,y+h*.51);
+      ctx.moveTo(x+w*.42,y+h*.51);
+      ctx.lineTo(x+w*.50,y+h*.47);
+      ctx.stroke();
+
+      ctx.fillStyle = "#ffdf65";
+      ctx.beginPath();
+      ctx.arc(x+w*.28,y+h*.54,4,0,Math.PI*2);
+      ctx.arc(x+w*.45,y+h*.54,4,0,Math.PI*2);
+      ctx.fill();
+
+      // tusks big
+      ctx.strokeStyle = colors.tusk;
+      ctx.lineWidth = 8;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(x+w*.20,y+h*.72);
+      ctx.quadraticCurveTo(x+w*.03,y+h*.85,x+w*.08,y+h*.55);
+      ctx.moveTo(x+w*.48,y+h*.72);
+      ctx.quadraticCurveTo(x+w*.65,y+h*.85,x+w*.60,y+h*.55);
+      ctx.stroke();
+
+      // legs
+      ctx.strokeStyle = "#27160e";
+      ctx.lineWidth = 11;
+      for(const lx of [.28,.42,.62,.78]){
+        ctx.beginPath();
+        ctx.moveTo(x+w*lx,y+h*.78);
+        ctx.lineTo(x+w*lx+Math.sin(t+lx)*5,y+h+4);
+        ctx.stroke();
+      }
+
+      // boss hp
+      ctx.fillStyle = "rgba(0,0,0,.5)";
+      roundRect(W*.20,18,W*.60,18,10,true,false);
+      ctx.fillStyle = e.rage ? "#ff4a3f" : "#ffb43f";
+      roundRect(W*.20,18,W*.60*(e.hp/e.maxHp),18,10,true,false);
+      ctx.strokeStyle = "rgba(255,255,255,.75)";
+      ctx.lineWidth = 2;
+      roundRect(W*.20,18,W*.60,18,10,false,true);
+
+      ctx.fillStyle = "#fff8ea";
+      ctx.font = "900 16px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText("SU SIRBONI", W/2, 32);
+    }
+
+    function drawPeony(p){
+      if(p.hp <= 0){
+        ctx.strokeStyle = "#443020";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(p.x-12,p.y-3);
+        ctx.lineTo(p.x+10,p.y-18);
+        ctx.stroke();
+        return;
+      }
+
+      const t = performance.now()/600 + p.sway;
+      const sway = Math.sin(t)*3;
+
+      ctx.strokeStyle = colors.leaf;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(p.x,p.y);
+      ctx.quadraticCurveTo(p.x+sway,p.y-18,p.x+sway*.7,p.y-42);
+      ctx.stroke();
+
+      ctx.fillStyle = "#36ad52";
+      ctx.beginPath();
+      ctx.ellipse(p.x-8,p.y-20,11,5,-.5,0,Math.PI*2);
+      ctx.ellipse(p.x+10,p.y-15,12,5,.5,0,Math.PI*2);
+      ctx.fill();
+
+      const cx = p.x+sway*.7;
+      const cy = p.y-50;
+      const petal = p.hp === 1 ? "#ff9fca" : colors.peony;
+      for(let i=0;i<10;i++){
+        const a = Math.PI*2*i/10 + Math.sin(t)*.08;
+        ctx.fillStyle = i%2 ? petal : colors.peony2;
+        ctx.beginPath();
+        ctx.ellipse(cx+Math.cos(a)*12, cy+Math.sin(a)*10, 9, 7, a, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.fillStyle = "#ffd85f";
+      ctx.beginPath();
+      ctx.arc(cx,cy,6,0,Math.PI*2);
+      ctx.fill();
+
+      if(p.hp > 1){
+        ctx.fillStyle = "rgba(255,255,255,.85)";
+        ctx.font = "800 13px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillText("♥", cx, cy-22);
+      }
+    }
+
+    function drawAcorn(b){
+      ctx.save();
+      ctx.translate(b.x,b.y);
+      ctx.rotate(Math.sin(performance.now()/80 + b.x)*.35);
+      ctx.fillStyle = colors.acorn;
+      ctx.beginPath();
+      ctx.ellipse(0,2,b.r*.85,b.r*1.25,0,0,Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = colors.acornCap;
+      roundRect(-b.r, -b.r*.9, b.r*2, b.r*.75, 3, true, false);
+      ctx.strokeStyle = "#3b2111";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0,-b.r*.9);
+      ctx.lineTo(3,-b.r*1.55);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawClod(s){
+      ctx.save();
+      ctx.translate(s.x,s.y);
+      ctx.rotate(s.rot);
+      ctx.fillStyle = "#5a361f";
+      ctx.beginPath();
+      ctx.moveTo(-s.r,-s.r*.5);
+      ctx.lineTo(-s.r*.2,-s.r);
+      ctx.lineTo(s.r*.9,-s.r*.35);
+      ctx.lineTo(s.r*.7,s.r*.75);
+      ctx.lineTo(-s.r*.6,s.r);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#7c5134";
+      ctx.beginPath();
+      ctx.arc(-2,1,2,0,Math.PI*2);
+      ctx.arc(4,-3,1.8,0,Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawPower(p){
+      ctx.save();
+      ctx.translate(p.x,p.y);
+      ctx.rotate(p.spin);
+      let symbol="🌰", bg="#ffd36a";
+      if(p.kind==="shield"){symbol="🛡";bg="#8ee6ff";}
+      if(p.kind==="slow"){symbol="❄";bg="#b7ff9d";}
+      if(p.kind==="life"){symbol="♥";bg="#ff8fca";}
+      ctx.fillStyle = bg;
+      ctx.strokeStyle = "#fff8ea";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(-17,-17,34,34,10);
+      ctx.fill();
+      ctx.stroke();
+      ctx.rotate(-p.spin);
+      ctx.fillStyle = "#203020";
+      ctx.font = "900 19px system-ui";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(symbol,0,1);
+      ctx.restore();
+    }
+
+    function drawParticles(){
+      for(const p of particles){
+        ctx.globalAlpha = clamp(p.life/p.max,0,1);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function drawTexts(){
+      for(const t of texts){
+        ctx.globalAlpha = clamp(t.life/550,0,1);
+        ctx.fillStyle = "rgba(0,0,0,.35)";
+        ctx.font = "1000 " + t.size + "px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillText(t.text,t.x+2,t.y+2);
+        ctx.fillStyle = t.color;
+        ctx.fillText(t.text,t.x,t.y);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function roundRect(x,y,w,h,r,fill,stroke){
+      if(ctx.roundRect){
+        ctx.beginPath();
+        ctx.roundRect(x,y,w,h,r);
+        if(fill) ctx.fill();
+        if(stroke) ctx.stroke();
+        return;
+      }
+      ctx.beginPath();
+      ctx.moveTo(x+r,y);
+      ctx.lineTo(x+w-r,y);
+      ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+      ctx.lineTo(x+w,y+h-r);
+      ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+      ctx.lineTo(x+r,y+h);
+      ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+      ctx.lineTo(x,y+r);
+      ctx.quadraticCurveTo(x,y,x+r,y);
+      if(fill) ctx.fill();
+      if(stroke) ctx.stroke();
+    }
+
+    function loop(ts){
+      if(!gameOn) return;
+      const dtRaw = Math.min(.033, (ts-lastTime)/1000 || .016);
+      lastTime = ts;
+      if(!paused) update(dtRaw);
+      draw();
+      raf = requestAnimationFrame(loop);
+    }
+
+    function start(isHard=false){
+      hardMode = isHard;
+      ui.overlay.style.display = "none";
+      reset();
+      gameOn = true;
+      paused = false;
+      lastTime = performance.now();
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(loop);
+    }
+
+    function end(win,msg){
+      gameOn = false;
+      cancelAnimationFrame(raf);
+      ui.overlay.style.display = "flex";
+      ui.panel.innerHTML = `
+        <h2>${win ? "🌸 Vittoria!" : "🐗 Game Over"}</h2>
+        <p>${msg}</p>
+        <p><strong>Punteggio:</strong> ${score}<br><strong>Record:</strong> ${best}<br><strong>Ondata:</strong> ${wave}</p>
+        <button class="main" id="again">Rigioca</button>
+        <button class="secondary" id="againHard">Modalità cattiva</button>
+      `;
+      document.getElementById("again").onclick = ()=>start(false);
+      document.getElementById("againHard").onclick = ()=>start(true);
+    }
+
+    function togglePause(){
+      if(!gameOn) return;
+      paused = !paused;
+      if(paused){
+        texts.push({x:W/2,y:H*.36,text:"PAUSA",life:500,size:34,color:"#fff8ea"});
+      }
+    }
+
+    window.addEventListener("keydown", e=>{
+      if(e.code==="ArrowLeft" || e.code==="KeyA") keys.left=true;
+      if(e.code==="ArrowRight" || e.code==="KeyD") keys.right=true;
+      if(e.code==="Space"){ keys.fire=true; e.preventDefault(); }
+      if(e.code==="KeyP" && !keys.pause){ keys.pause=true; togglePause(); }
+    });
+
+    window.addEventListener("keyup", e=>{
+      if(e.code==="ArrowLeft" || e.code==="KeyA") keys.left=false;
+      if(e.code==="ArrowRight" || e.code==="KeyD") keys.right=false;
+      if(e.code==="Space") keys.fire=false;
+      if(e.code==="KeyP") keys.pause=false;
+    });
+
+    function bindHold(id,key){
+      const el = document.getElementById(id);
+      const on = e=>{ e.preventDefault(); keys[key]=true; };
+      const off = e=>{ e.preventDefault(); keys[key]=false; };
+      el.addEventListener("touchstart",on,{passive:false});
+      el.addEventListener("touchend",off,{passive:false});
+      el.addEventListener("touchcancel",off,{passive:false});
+      el.addEventListener("mousedown",on);
+      window.addEventListener("mouseup",off);
+      el.addEventListener("mouseleave",off);
+    }
+
+    bindHold("leftBtn","left");
+    bindHold("rightBtn","right");
+    bindHold("fireBtn","fire");
+
+    ui.startBtn.onclick = ()=>start(false);
+    ui.hardBtn.onclick = ()=>start(true);
+
+    initDecor();
+    initPeonies();
+    spawnWave();
+    syncHud();
+    draw();
+  </script>
+</body>
+</html>
