@@ -299,7 +299,7 @@
       </p>
       <div class="rules">
         <div class="rule"><strong>Comandi:</strong><br>← → o A/D per muoverti, Spazio per sparare, P per pausa.</div>
-        <div class="rule"><strong>Difficoltà:</strong><br>cresce all'aumentare del livello.</div>
+        <div class="rule"><strong>Difficoltà:</strong><br>cresce gradualmente. Il boss appare all'ondata 3 e poi ogni 4 ondate.</div>
         <div class="rule"><strong>Power-up:</strong><br>ghianda tripla, scudo, rallentamento, vita extra.</div>
         <div class="rule"><strong>Obiettivo:</strong><br>tieni vive le peonie e supera più ondate possibile.</div>
       </div>
@@ -355,6 +355,7 @@
     let flash = 0;
     let slowMo = 0;
     let bossIncoming = false;
+    let wavePending = false;
 
     let bullets = [];
     let enemyBullets = [];
@@ -462,6 +463,7 @@
       flash = 0;
       slowMo = 0;
       bossIncoming = false;
+      wavePending = false;
 
       bullets = [];
       enemyBullets = [];
@@ -492,11 +494,12 @@
     }
 
     function spawnWave(){
+      wavePending = false;
       enemies = [];
       enemyBullets = [];
       bullets = bullets.filter(b => b.y > H*.45);
 
-      const bossWave = wave % 5 === 0;
+      const bossWave = wave === 3 || (wave > 3 && (wave - 3) % 4 === 0);
       bossIncoming = bossWave;
 
       if(bossWave){
@@ -508,30 +511,30 @@
           y:52,
           w:190,
           h:104,
-          hp: 42 + wave*6 + (hardMode?25:0),
-          maxHp: 42 + wave*6 + (hardMode?25:0),
-          vx: 75 + wave*7,
-          vy: 13 + wave,
-          shoot: 700,
+          hp: 30 + wave*4 + (hardMode?18:0),
+          maxHp: 30 + wave*4 + (hardMode?18:0),
+          vx: 62 + wave*5,
+          vy: 8 + wave*.7,
+          shoot: 950,
           bob:0,
           rage:false
         });
         return;
       }
 
-      const rows = Math.min(5, 3 + Math.floor(wave/2));
-      const cols = Math.min(10, 7 + Math.floor(wave/3));
+      const rows = Math.min(5, wave < 4 ? 3 : 3 + Math.floor((wave-2)/2));
+      const cols = Math.min(10, 6 + Math.floor((wave+1)/2));
       const marginX = 105;
       const gapX = (W - marginX*2)/(cols-1 || 1);
       const startY = 70;
       const gapY = 58;
-      const hpBase = 1 + Math.floor(wave/4);
+      const hpBase = 1 + Math.floor(Math.max(0, wave-3)/4);
 
       for(let r=0;r<rows;r++){
         for(let c=0;c<cols;c++){
-          const fast = Math.random() < .16 + wave*.012;
-          const armored = Math.random() < .08 + wave*.01;
-          const zig = Math.random() < .18 + wave*.015;
+          const fast = Math.random() < .08 + wave*.010;
+          const armored = wave >= 4 && Math.random() < .05 + wave*.008;
+          const zig = Math.random() < .10 + wave*.012;
           enemies.push({
             type: armored ? "armored" : fast ? "fast" : zig ? "zig" : "boar",
             x: marginX + c*gapX - 25,
@@ -696,8 +699,6 @@
               shake = Math.max(shake, e.type==="boss"?18:5);
               if(e.type==="boss"){
                 texts.push({x:W/2,y:H*.28,text:"BOSS RESPINTO!",life:1600,size:38,color:"#fff0a8"});
-                wave++;
-                setTimeout(()=>{ if(gameOn) spawnWave(); syncHud(); },650);
               }
             }
             break;
@@ -757,17 +758,18 @@
         if(t.life <= 0) texts.splice(i,1);
       }
 
-      if(enemies.length === 0 && gameOn){
+      if(enemies.length === 0 && gameOn && !wavePending){
+        wavePending = true;
         wave++;
         texts.push({x:W/2,y:H*.26,text:"ONDATA RESPINTA!",life:1200,size:36,color:"#fff5a6"});
-        setTimeout(()=>{ if(gameOn) spawnWave(); syncHud(); },550);
+        setTimeout(()=>{ if(gameOn) spawnWave(); syncHud(); },650);
       }
 
       syncHud();
     }
 
     function updateEnemies(dt){
-      const base = hardMode ? 1.28 : 1;
+      const base = hardMode ? 1.18 : 0.88;
       const living = enemies.length;
       for(const e of enemies){
         if(e.type === "boss"){
@@ -811,17 +813,17 @@
           continue;
         }
 
-        const speedDown = (8 + wave*1.8) * base;
-        const speedSide = (28 + wave*5) * base;
+        const speedDown = (5.8 + wave*1.15) * base;
+        const speedSide = (22 + wave*3.8) * base;
 
         e.phase += dt*(1.8 + wave*.08);
 
         if(e.type === "zig"){
           e.x = e.baseX + Math.sin(e.phase)*38;
-          e.y += speedDown*dt*1.25;
+          e.y += speedDown*dt*1.12;
         }else if(e.type === "fast"){
           e.x += Math.sin(e.phase*1.4)*speedSide*dt*.7;
-          e.y += speedDown*dt*1.7;
+          e.y += speedDown*dt*1.38;
         }else if(e.type === "armored"){
           e.x += Math.sin(e.phase)*speedSide*dt*.28;
           e.y += speedDown*dt*.82;
@@ -831,13 +833,13 @@
         }
 
         e.shoot -= dt*1000;
-        const shootChanceBoost = hardMode ? .72 : 1;
-        if(e.shoot <= 0 && Math.random() < .18 + wave*.018){
+        const shootChanceBoost = hardMode ? .80 : 1.22;
+        if(e.shoot <= 0 && Math.random() < .12 + wave*.012){
           enemyBullets.push({
             x:e.x+e.w/2,
             y:e.y+e.h,
             vx:rnd(-35,35),
-            vy:(190 + wave*13) * base,
+            vy:(165 + wave*9) * base,
             r:7,
             rot:0,
             kind:"clod"
