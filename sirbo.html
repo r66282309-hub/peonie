@@ -152,6 +152,14 @@
       filter: drop-shadow(0 0 10px rgba(255,255,255,.9)) saturate(1.4);
     }
 
+    .boar.small {
+      width: 38px;
+      height: 38px;
+      font-size: 30px;
+      background: rgba(255,255,255,.38);
+      z-index: 4;
+    }
+
     @keyframes shake {
       from { transform: translate(-50%, -50%) rotate(-8deg) scale(1.04); }
       to { transform: translate(-50%, -50%) rotate(8deg) scale(.98); }
@@ -387,8 +395,8 @@
     <div class="card">
       <div class="big">🐗🌺</div>
       <h2>Ferma il grufolatore!</h2>
-      <p>Il cinghiale cerca zone dove grufolare. Usa ghiande, recinti e fischio per tenerlo lontano dalle peonie.</p>
-      <p><b>Obiettivo:</b> salva più peonie possibile in 60 secondi.</p>
+      <p>I cinghiali cercano zone dove grufolare. Ora entrano in campo anche i piccoli: sono più veloci, più difficili da intercettare e puntano alle peonie.</p>
+      <p><b>Obiettivo:</b> salva più peonie possibile in 60 secondi usando ghiande, recinti e fischio.</p>
       <button id="startBtn">Inizia</button>
     </div>
   </div>
@@ -438,14 +446,16 @@
     let acorns = [];
     let fences = [];
     let holes = [];
+    let boars = [];
 
-    let boar = {};
     let timeLeft = 60;
     let score = 0;
-    let acornCount = 5;
-    let fenceCount = 4;
+    let acornCount = 6;
+    let fenceCount = 5;
     let whistleCooldown = 0;
     let spawnTimer = 0;
+    let pigletTimer = 0;
+    let pigletsReleased = 0;
     let messageTimer = 0;
 
     function resize() {
@@ -490,44 +500,80 @@
       acorns.forEach(a => a.el.remove());
       fences.forEach(f => f.el.remove());
       holes.forEach(h => h.el.remove());
+      boars.slice(1).forEach(b => {
+        b.el.remove();
+        b.bar.remove();
+      });
       peonies = [];
       acorns = [];
       fences = [];
       holes = [];
+      boars = [];
 
       timeLeft = 60;
       score = 0;
-      acornCount = 5;
-      fenceCount = 4;
+      acornCount = 6;
+      fenceCount = 5;
       whistleCooldown = 0;
       spawnTimer = 0;
+      pigletTimer = 0;
+      pigletsReleased = 0;
       messageTimer = 0;
 
       const marginX = Math.max(50, W * 0.08);
       const marginY = Math.max(65, H * 0.12);
 
-      for (let i = 0; i < 12; i++) {
+      for (let i = 0; i < 15; i++) {
         const x = rand(marginX, W - marginX);
         const y = rand(marginY + 40, H - marginY);
         const el = createDiv("peony", "🌺", x, y);
         peonies.push({x, y, status: "ok", grub: 0, el});
       }
 
-      boar = {
-        x: rand(50, W - 50),
-        y: 40,
-        vx: rand(-25, 25),
-        vy: 65,
+      createBoar("adult", rand(50, W - 50), 42, boarEl, grubBar);
+      createBoar("piglet", rand(50, W - 50), rand(70, 120));
+      createBoar("piglet", rand(50, W - 50), rand(70, 120));
+
+      updateAllBoars();
+      updateUI();
+    }
+
+    function createBoar(type, x, y, existingEl = null, existingBar = null) {
+      const isPiglet = type === "piglet";
+      const el = existingEl || createDiv("boar", "🐗", x, y);
+      const bar = existingBar || (() => {
+        const b = document.createElement("div");
+        b.className = "grubBar";
+        const fill = document.createElement("div");
+        b.appendChild(fill);
+        field.appendChild(b);
+        return b;
+      })();
+      el.className = isPiglet ? "boar small" : "boar";
+      el.textContent = isPiglet ? "🐖" : "🐗";
+      boars.push({
+        type,
+        x,
+        y,
+        vx: rand(-35, 35),
+        vy: isPiglet ? rand(85, 125) : 70,
         state: "wander",
         target: null,
         scared: 0,
         grubbing: null,
-        chooseTimer: 0
-      };
-
-      boarEl.className = "boar";
-      updateBoarEl();
-      updateUI();
+        chooseTimer: 0,
+        speedBase: isPiglet ? 98 : 72,
+        maxBase: isPiglet ? 145 : 122,
+        damageTime: isPiglet ? 1.35 : 1.0,
+        uprootTime: isPiglet ? 3.0 : 2.2,
+        grubRadius: isPiglet ? 28 : 36,
+        repelRadius: isPiglet ? 37 : 44,
+        damagePenalty: isPiglet ? 12 : 20,
+        uprootPenalty: isPiglet ? 35 : 55,
+        el,
+        bar,
+        fill: bar.firstElementChild
+      });
     }
 
     function startGame() {
@@ -536,7 +582,7 @@
       last = performance.now();
       ui.startOverlay.style.display = "none";
       ui.endOverlay.style.display = "none";
-      showMsg("Il cinghiale ha fiutato le peonie!");
+      showMsg("Ora arrivano anche i piccoli grufolatori!");
       requestAnimationFrame(loop);
     }
 
@@ -554,18 +600,19 @@
         <b>Peonie integre:</b> ${ok}<br>
         <b>Peonie danneggiate:</b> ${damaged}<br>
         <b>Peonie sradicate:</b> ${uprooted}<br>
+        <b>Suidi entrati in campo:</b> ${boars.length}<br>
         <b>Indice di conservazione:</b> ${conservation}/100
       `;
       ui.score.textContent = score;
       ui.endOverlay.style.display = "grid";
     }
 
-    function chooseTarget() {
+    function chooseTarget(boar) {
       const live = peonies.filter(p => p.status !== "uprooted");
       if (live.length === 0) return null;
 
       const activeAcorn = acorns.find(a => a.ttl > 0);
-      if (activeAcorn && Math.random() < 0.78) {
+      if (activeAcorn && Math.random() < (boar.type === "piglet" ? 0.65 : 0.78)) {
         boar.state = "distracted";
         return activeAcorn;
       }
@@ -574,15 +621,15 @@
       return live[Math.floor(Math.random() * live.length)];
     }
 
-    function updateBoar(dt) {
+    function updateBoar(boar, dt) {
       if (boar.scared > 0) {
         boar.scared -= dt;
         boar.state = "scared";
       } else {
         boar.chooseTimer -= dt;
         if (!boar.target || boar.chooseTimer <= 0 || (boar.target.status === "uprooted")) {
-          boar.target = chooseTarget();
-          boar.chooseTimer = rand(2.0, 4.0);
+          boar.target = chooseTarget(boar);
+          boar.chooseTimer = rand(1.5, boar.type === "piglet" ? 3.0 : 4.0);
         }
       }
 
@@ -590,7 +637,7 @@
         const dx = boar.target.x - boar.x;
         const dy = boar.target.y - boar.y;
         const d = Math.max(1, Math.sqrt(dx*dx + dy*dy));
-        const speed = boar.state === "distracted" ? 95 : 72 + (60 - timeLeft) * 0.8;
+        const speed = (boar.state === "distracted" ? boar.speedBase + 22 : boar.speedBase) + (60 - timeLeft) * (boar.type === "piglet" ? 1.2 : 0.8);
         boar.vx += (dx / d) * speed * dt * 2.1;
         boar.vy += (dy / d) * speed * dt * 2.1;
       }
@@ -598,7 +645,7 @@
       boar.vx *= Math.pow(0.88, dt * 8);
       boar.vy *= Math.pow(0.88, dt * 8);
 
-      const maxSpeed = boar.scared > 0 ? 190 : 120 + (60 - timeLeft) * 0.8;
+      const maxSpeed = boar.scared > 0 ? 210 : boar.maxBase + (60 - timeLeft) * (boar.type === "piglet" ? 1.1 : 0.8);
       const sp = Math.sqrt(boar.vx*boar.vx + boar.vy*boar.vy);
       if (sp > maxSpeed) {
         boar.vx = boar.vx / sp * maxSpeed;
@@ -608,32 +655,33 @@
       boar.x += boar.vx * dt;
       boar.y += boar.vy * dt;
 
-      if (boar.x < 25 || boar.x > W - 25) {
+      const edge = boar.type === "piglet" ? 20 : 25;
+      if (boar.x < edge || boar.x > W - edge) {
         boar.vx *= -1.2;
-        boar.x = clamp(boar.x, 25, W - 25);
+        boar.x = clamp(boar.x, edge, W - edge);
       }
-      if (boar.y < 25 || boar.y > H - 25) {
+      if (boar.y < edge || boar.y > H - edge) {
         boar.vy *= -1.2;
-        boar.y = clamp(boar.y, 25, H - 25);
+        boar.y = clamp(boar.y, edge, H - edge);
       }
 
       fences.forEach(f => {
         const d = dist(boar, f);
-        if (d < 44) {
+        if (d < boar.repelRadius) {
           const nx = (boar.x - f.x) / Math.max(d, 1);
           const ny = (boar.y - f.y) / Math.max(d, 1);
-          boar.vx += nx * 210 * dt;
-          boar.vy += ny * 210 * dt;
-          boar.x += nx * 1.5;
-          boar.y += ny * 1.5;
+          boar.vx += nx * 230 * dt;
+          boar.vy += ny * 230 * dt;
+          boar.x += nx * 1.6;
+          boar.y += ny * 1.6;
         }
       });
 
-      updateGrub(dt);
-      updateBoarEl();
+      updateGrub(boar, dt);
+      updateBoarEl(boar);
     }
 
-    function updateGrub(dt) {
+    function updateGrub(boar, dt) {
       let nearest = null;
       let nearestD = 9999;
 
@@ -646,28 +694,28 @@
         }
       });
 
-      if (nearest && nearestD < 36 && boar.scared <= 0) {
+      if (nearest && nearestD < boar.grubRadius && boar.scared <= 0) {
         boar.grubbing = nearest;
-        boarEl.classList.add("grufola");
-        nearest.grub += dt;
-        grubBar.style.display = "block";
-        grubBar.style.left = boar.x + "px";
-        grubBar.style.top = (boar.y - 38) + "px";
-        grubBarFill.style.width = Math.min(100, nearest.grub / 2.2 * 100) + "%";
+        boar.el.classList.add("grufola");
+        nearest.grub += dt * (boar.type === "piglet" ? 0.72 : 1.0);
+        boar.bar.style.display = "block";
+        boar.bar.style.left = boar.x + "px";
+        boar.bar.style.top = (boar.y - 38) + "px";
+        boar.fill.style.width = Math.min(100, nearest.grub / boar.uprootTime * 100) + "%";
 
-        if (nearest.grub > 1.0 && nearest.status === "ok") {
+        if (nearest.grub > boar.damageTime && nearest.status === "ok") {
           nearest.status = "damaged";
           nearest.el.className = "peony damaged";
-          score -= 20;
+          score -= boar.damagePenalty;
           createHole(nearest.x + rand(-10,10), nearest.y + rand(-8,8));
-          showMsg("Peonia danneggiata dal grufolamento!");
+          showMsg(boar.type === "piglet" ? "Un piccolo ha danneggiato una peonia!" : "Peonia danneggiata dal grufolamento!");
         }
 
-        if (nearest.grub > 2.2 && nearest.status !== "uprooted") {
+        if (nearest.grub > boar.uprootTime && nearest.status !== "uprooted") {
           nearest.status = "uprooted";
           nearest.el.className = "peony uprooted";
           nearest.el.textContent = "🕳️";
-          score -= 55;
+          score -= boar.uprootPenalty;
           createHole(nearest.x, nearest.y);
           boar.vx += rand(-120, 120);
           boar.vy += rand(-120, 120);
@@ -676,8 +724,8 @@
         }
       } else {
         boar.grubbing = null;
-        boarEl.classList.remove("grufola");
-        grubBar.style.display = "none";
+        boar.el.classList.remove("grufola");
+        boar.bar.style.display = "none";
       }
     }
 
@@ -689,11 +737,13 @@
     function updateItems(dt) {
       acorns.forEach(a => {
         a.ttl -= dt;
-        if (dist(boar, a) < 28) {
+        const eater = boars.find(b => dist(b, a) < (b.type === "piglet" ? 22 : 28));
+        if (eater) {
           a.ttl = 0;
-          score += 25;
-          showMsg("Ghianda presa: cinghiale distratto!");
-          boar.target = null;
+          score += eater.type === "piglet" ? 16 : 25;
+          showMsg(eater.type === "piglet" ? "Il piccolo si distrae con la ghianda!" : "Ghianda presa: cinghiale distratto!");
+          eater.target = null;
+          eater.chooseTimer = 0;
         }
       });
 
@@ -706,19 +756,30 @@
         return true;
       });
 
-      if (acornCount < 5) {
+      if (acornCount < 6) {
         spawnTimer += dt;
-        if (spawnTimer > 7) {
+        if (spawnTimer > 6) {
           acornCount++;
           spawnTimer = 0;
         }
       }
+
+      pigletTimer += dt;
+      if (pigletsReleased < 1 && pigletTimer > 24) {
+        pigletsReleased++;
+        createBoar("piglet", rand(35, W - 35), rand(35, H - 35));
+        showMsg("È entrato un altro piccolo grufolatore!");
+      }
     }
 
-    function updateBoarEl() {
-      boarEl.style.left = boar.x + "px";
-      boarEl.style.top = boar.y + "px";
-      boarEl.classList.toggle("scared", boar.scared > 0);
+    function updateBoarEl(boar) {
+      boar.el.style.left = boar.x + "px";
+      boar.el.style.top = boar.y + "px";
+      boar.el.classList.toggle("scared", boar.scared > 0);
+    }
+
+    function updateAllBoars() {
+      boars.forEach(updateBoarEl);
     }
 
     function updateUI() {
@@ -744,8 +805,11 @@
       const el = createDiv("acorn", "🌰", x, y);
       acorns.push({x, y, ttl: 8, el});
       acornCount--;
-      boar.target = {x, y};
-      boar.state = "distracted";
+      const nearestBoar = boars.slice().sort((a, b) => dist(a, {x, y}) - dist(b, {x, y}))[0];
+      if (nearestBoar) {
+        nearestBoar.target = {x, y};
+        nearestBoar.state = "distracted";
+      }
       showMsg("Ghianda piazzata!");
     }
 
@@ -764,14 +828,16 @@
 
     function whistle() {
       if (whistleCooldown > 0) return;
-      const angle = Math.atan2(boar.y - H/2, boar.x - W/2) + rand(-0.8, 0.8);
-      boar.vx = Math.cos(angle) * 180;
-      boar.vy = Math.sin(angle) * 180;
-      boar.scared = 1.5;
-      boar.target = null;
+      boars.forEach(boar => {
+        const angle = Math.atan2(boar.y - H/2, boar.x - W/2) + rand(-0.8, 0.8);
+        boar.vx = Math.cos(angle) * (boar.type === "piglet" ? 205 : 180);
+        boar.vy = Math.sin(angle) * (boar.type === "piglet" ? 205 : 180);
+        boar.scared = boar.type === "piglet" ? 1.0 : 1.5;
+        boar.target = null;
+      });
       whistleCooldown = 7;
       score += 10;
-      showMsg("Fischio! Grufolamento interrotto.");
+      showMsg("Fischio! Tutti i suidi scappano per un attimo.");
     }
 
     function fieldPoint(evt) {
@@ -786,7 +852,8 @@
       evt.preventDefault();
       const p = fieldPoint(evt);
 
-      if (dist(p, boar) < 44) {
+      const touchedBoar = boars.find(b => dist(p, b) < (b.type === "piglet" ? 34 : 44));
+      if (touchedBoar) {
         whistle();
         updateUI();
         return;
@@ -807,7 +874,7 @@
 
       if (whistleCooldown > 0) whistleCooldown -= dt;
 
-      updateBoar(dt);
+      boars.forEach(b => updateBoar(b, dt));
       updateItems(dt);
 
       if (messageTimer > 0) {
