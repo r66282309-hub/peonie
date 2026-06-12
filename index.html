@@ -965,7 +965,7 @@
 
     .games-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 14px;
       margin-top: 18px;
     }
@@ -1031,6 +1031,13 @@
       cursor: pointer;
       background: var(--accent-soft);
       color: var(--accent-dark);
+    }
+
+
+    @media (max-width: 980px) {
+      .games-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
 
     @media (max-width: 700px) {
@@ -1166,7 +1173,7 @@
       <div class="games-kicker"><span class="dot"></span> Mini giochi</div>
       <h2 id="gamesTitle">Scegli un gioco</h2>
       <p class="games-intro">
-        Due piccoli giochi educativi per conoscere le peonie selvatiche e i fattori che possono minacciarle.
+        Tre piccoli giochi educativi per conoscere le peonie selvatiche e i fattori che possono minacciarle.
       </p>
 
       <div class="games-grid">
@@ -1184,6 +1191,15 @@
             <div class="game-choice-icon" aria-hidden="true">🐗</div>
             <h3>Ferma il grufolatore!</h3>
             <p>Usa ghiande, recinti e fischio per proteggere le peonie dal cinghiale.</p>
+          </div>
+          <div class="game-choice-footer">Gioca →</div>
+        </a>
+
+        <a class="game-choice" href="invaders.html">
+          <div>
+            <div class="game-choice-icon" aria-hidden="true">🌰</div>
+            <h3>Invaders</h3>
+            <p>Abbatti le ondate di cinghiali sparando ghiande e difendi il prato delle peonie.</p>
           </div>
           <div class="game-choice-footer">Gioca →</div>
         </a>
