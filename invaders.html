@@ -485,7 +485,7 @@
     function syncHud(){
       ui.score.textContent = score;
       ui.best.textContent = best;
-      ui.lives.textContent = lives;
+      ui.lives.textContent = Number.isInteger(lives) ? lives : lives.toFixed(1);
       ui.peonies.textContent = peonies.filter(p=>p.hp>0).length;
       ui.wave.textContent = wave;
       ui.combo.textContent = "x" + combo;
@@ -612,7 +612,7 @@
         }
         return;
       }
-      lives--;
+      lives -= 0.5;
       player.inv = 1700;
       shake = 18;
       flash = 260;
