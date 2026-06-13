@@ -299,9 +299,9 @@
       </p>
       <div class="rules">
         <div class="rule"><strong>Comandi:</strong><br>← → o A/D per muoverti, Spazio per sparare, P per pausa.</div>
-        <div class="rule"><strong>Difficoltà:</strong><br>cresce gradualmente. Il boss appare all'ondata 3 e poi ogni 4 ondate.</div>
+        <div class="rule"><strong>Difficoltà:</strong><br>cresce gradualmente. Contro Su Sirboni conta solo sconfiggere il boss.</div>
         <div class="rule"><strong>Power-up:</strong><br>ghianda tripla, scudo, rallentamento, vita extra.</div>
-        <div class="rule"><strong>Obiettivo:</strong><br>tieni vive le peonie e supera più ondate possibile.</div>
+        <div class="rule"><strong>Obiettivo:</strong><br>tieni vive le peonie; contro Su Sirboni resisti e sconfiggi il boss.</div>
       </div>
       <button class="main" id="startBtn">Inizia</button>
       <button class="secondary" id="hardBtn">Elite mode</button>
@@ -598,6 +598,24 @@
       return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
     }
 
+    function isBossFight(){
+      return enemies.some(e => e.type === "boss" && e.hp > 0);
+    }
+
+    function restorePeoniesAfterBoss(){
+      if(peonies.filter(p => p.hp > 0).length === 0){
+        initPeonies();
+        texts.push({
+          x: W/2,
+          y: H*.34,
+          text: "LE PEONIE RICRESCONO!",
+          life: 1500,
+          size: 30,
+          color: "#ffb2d4"
+        });
+      }
+    }
+
     function damagePeony(x, amount=1){
       let alive = peonies.filter(p=>p.hp>0);
       if(!alive.length) return;
@@ -612,7 +630,22 @@
         sound("hurt");
       }
       syncHud();
-      if(peonies.filter(pp=>pp.hp>0).length <= 0) end(false,"I cinghiali hanno devastato il prato.");
+
+      if(peonies.filter(pp=>pp.hp>0).length <= 0){
+        if(isBossFight()){
+          texts.push({
+            x: W/2,
+            y: H*.40,
+            text: "ORA CONTA SOLO BATTERE SU SIRBONI!",
+            life: 1400,
+            size: 25,
+            color: "#fff0a8"
+          });
+          return;
+        }
+
+        end(false,"I cinghiali hanno devastato il prato.");
+      }
     }
 
     function hurtPlayer(){
@@ -707,6 +740,7 @@
               shake = Math.max(shake, e.type==="boss"?18:5);
               if(e.type==="boss"){
                 texts.push({x:W/2,y:H*.28,text:"BOSS RESPINTO!",life:1600,size:38,color:"#fff0a8"});
+                restorePeoniesAfterBoss();
               }
             }
             break;
