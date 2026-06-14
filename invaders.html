@@ -556,7 +556,7 @@
             vy: 0,
             row:r,
             phase:rnd(0,Math.PI*2),
-            shoot:rnd(800,2300),
+            shoot:rnd(1000,2600),
             dir:1
           });
         }
@@ -845,7 +845,7 @@
                 kind:"clod"
               });
             }
-            e.shoot = (e.rage ? 500 : 780) - wave*10;
+            e.shoot = (e.rage ? 560 : 860) - wave*8;
           }
 
           if(e.y+e.h > H-96){
@@ -876,7 +876,7 @@
 
         e.shoot -= dt*1000;
         const shootChanceBoost = hardMode ? .80 : 1.22;
-        if(e.shoot <= 0 && Math.random() < .12 + wave*.012){
+        if(e.shoot <= 0 && Math.random() < .10 + wave*.010){
           enemyBullets.push({
             x:e.x+e.w/2,
             y:e.y+e.h,
@@ -886,7 +886,7 @@
             rot:0,
             kind:"clod"
           });
-          e.shoot = rnd(900,2100) * shootChanceBoost;
+          e.shoot = rnd(1050,2400) * shootChanceBoost;
         }
 
         if(e.y + e.h > H-78){
