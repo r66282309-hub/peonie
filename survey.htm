@@ -578,24 +578,15 @@
       // compiler, lat, lon, individuals_estimated,
       // photo_site_url, photo_group_url, photo_plant_url, photo_leaf_under_url,
       // created_at, synced_from_cache, local_id
+      // Payload minimale compatibile con la tabella points usata anche dall'APK.
+      // I campi extra del survey web possono far fallire l'INSERT se non sono previsti
+      // nello schema o nelle policy/constraint RLS. Per ora salviamo solo i campi base.
       const payload = {
-        // Vecchi campi mantenuti per compatibilità con la vecchia tabella/app
         name: record.compiler.slice(0,80),
         land_cover: record.individuals_estimated,
         photo_url: photoUrls.photo_site_url || null,
-
-        // Nuovi campi per il survey peonie
-        compiler: record.compiler.slice(0,80),
         lat: Number(record.lat),
-        lon: Number(record.lon),
-        individuals_estimated: record.individuals_estimated,
-        photo_site_url: photoUrls.photo_site_url || null,
-        photo_group_url: photoUrls.photo_group_url || null,
-        photo_plant_url: photoUrls.photo_plant_url || null,
-        photo_leaf_under_url: photoUrls.photo_leaf_under_url || null,
-        created_at: record.created_at,
-        synced_from_cache: !!record.synced_from_cache,
-        local_id: record.local_id
+        lon: Number(record.lon)
       };
 
       const { error } = await sb.from(table).insert([payload]);
