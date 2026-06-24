@@ -299,7 +299,7 @@
       const bucket = window.DEFAULT_BUCKET || 'soil_photos';
       const folder = recordFolderName(record);
       const path = `peonie_storiche/${folder}/${safePart(kind)}.jpg`;
-      const { error } = await sb.storage.from(bucket).upload(path, file, {contentType:'image/jpeg', upsert:true});
+      const { error } = await sb.storage.from(bucket).upload(path, file, {contentType:'image/jpeg', upsert:false});
       if(error) throw error;
       const { data } = sb.storage.from(bucket).getPublicUrl(path);
       return data.publicUrl;
