@@ -368,6 +368,20 @@
     function setStatus(msg, cls){ const el=$('status'); el.textContent = msg||''; el.className='mini ' + (cls||''); }
     function setCacheStatus(msg, cls){ const el=$('cacheStatus'); el.textContent = msg||''; el.className='mini ' + (cls||''); }
 
+    function describeSupabaseError(error){
+      const parts = [];
+      if(error?.message) parts.push(error.message);
+      if(error?.code) parts.push('code: ' + error.code);
+      if(error?.details) parts.push('details: ' + error.details);
+      if(error?.hint) parts.push('hint: ' + error.hint);
+      return parts.length ? parts.join(' | ') : String(error || 'Errore sconosciuto');
+    }
+
+    function isRealNetworkError(error){
+      const msg = String(error?.message || error || '').toLowerCase();
+      return !navigator.onLine || msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('network request failed');
+    }
+
     // =========================
     // IndexedDB: cache locale persistente, adatta anche ai file immagine
     // =========================
@@ -560,7 +574,10 @@
       const fileName = fileNameByKind[kind] || `${safePart(kind)}.jpg`;
       const path = `peonie/${folder}/${fileName}`;
       const { error } = await sb.storage.from(bucket).upload(path, file, {contentType:'image/jpeg', upsert:true});
-      if(error) throw error;
+      if(error){
+        console.error('ERRORE STORAGE UPLOAD', { bucket, path, error });
+        throw new Error('Storage upload fallito su bucket "' + bucket + '": ' + describeSupabaseError(error));
+      }
       const { data } = sb.storage.from(bucket).getPublicUrl(path);
       return data.publicUrl;
     }
@@ -598,8 +615,13 @@
         local_id: record.local_id
       };
 
-      const { error } = await sb.from(table).insert([payload]);
-      if(error) throw error;
+      console.log('PAYLOAD INSERT', table, payload);
+      const { data, error } = await sb.from(table).insert([payload]).select();
+      if(error){
+        console.error('ERRORE INSERT TABLE', { table, payload, error });
+        throw new Error('Insert fallito su tabella "' + table + '": ' + describeSupabaseError(error));
+      }
+      console.log('INSERT OK', data);
       return true;
     }
 
@@ -664,12 +686,15 @@
           setStatus('Segnalazione caricata correttamente.', 'ok');
           resetFormKeepCompiler();
         }catch(netErr){
-          console.warn('Upload fallito, salvo in cache', netErr);
+          console.warn('Invio fallito, salvo in cache', netErr);
           record.synced_from_cache = true;
-          record.last_error = String(netErr.message || netErr);
+          record.last_error = describeSupabaseError(netErr);
           await cacheRecord(record);
-          showToast('Errore di rete: dati salvati in locale');
-          setStatus('Errore di rete, dati salvati in locale. Ricorda di sincronizzare appena agganci il segnale.', 'warn');
+          const msg = isRealNetworkError(netErr)
+            ? 'Errore di rete: dati salvati in locale.'
+            : 'Invio non riuscito: ' + describeSupabaseError(netErr) + '. Dati salvati in locale.';
+          showToast(msg);
+          setStatus(msg, 'warn');
           resetFormKeepCompiler();
         }
         await updateCacheCounter();
@@ -731,7 +756,7 @@ Premi OK per eliminare. Operazione non annullabile.`);
             await updateCacheCounter();
           }catch(e){
             console.warn('Sync fallita per record', rec.local_id, e);
-            setStatus(`Sincronizzazione parziale: ${ok}/${rows.length}. Ultimo errore: ${e.message || e}`, 'warn');
+            setStatus(`Sincronizzazione parziale: ${ok}/${rows.length}. Ultimo errore: ${describeSupabaseError(e)}`, 'warn');
             return;
           }
         }
