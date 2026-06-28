@@ -13,10 +13,15 @@
     rel="stylesheet"
     href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"
   />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css"
+  />
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
   <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -436,6 +441,89 @@
       text-align: center;
     }
 
+    .popup-photo-thumbs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .popup-photo-thumbs a {
+      display: grid;
+      gap: 5px;
+      text-decoration: none;
+      color: var(--accent-dark);
+      font-size: 0.76rem;
+      font-weight: 850;
+      text-align: center;
+    }
+
+    .popup-photo-thumbs img {
+      display: block;
+      width: 100%;
+      height: 92px;
+      object-fit: cover;
+      border-radius: 12px;
+      border: 1px solid rgba(219, 39, 119, 0.18);
+      background: #f3f4f6;
+    }
+
+    .terrain-panel {
+      position: absolute;
+      inset: 0;
+      z-index: 850;
+      display: none;
+      overflow: hidden;
+      background: #111827;
+    }
+
+    .terrain-panel.is-visible {
+      display: block;
+    }
+
+    #terrainMap {
+      width: 100%;
+      height: 100%;
+    }
+
+    .terrain-toolbar {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      right: 14px;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      pointer-events: none;
+    }
+
+    .terrain-info {
+      pointer-events: auto;
+      max-width: min(540px, 100%);
+      border-radius: 16px;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.92);
+      color: #231323;
+      border: 1px solid rgba(241, 217, 230, 0.9);
+      box-shadow: 0 14px 35px rgba(0, 0, 0, 0.25);
+      backdrop-filter: blur(10px);
+      font-size: 0.84rem;
+      line-height: 1.35;
+    }
+
+    .terrain-info strong {
+      color: var(--accent-dark);
+    }
+
+    .terrain-toolbar button {
+      pointer-events: auto;
+      background: rgba(252, 231, 243, 0.95);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+    }
+
 
     .photo-modal {
       position: fixed;
@@ -851,6 +939,7 @@
         <button type="button" id="btnTable" disabled>Segnalazioni</button>
         <button type="button" id="btnNotes" disabled>Utenti iscritti</button>
         <button type="button" id="btnMeasure" disabled>Misura distanze</button>
+        <button type="button" id="btnTerrain3d" disabled>3D DEM</button>
         <button type="button" id="btnPrintPdf" disabled>Layout PDF</button>
         <button type="button" id="btnCancelPrint" class="is-hidden" disabled>Annulla layout</button>
         <button type="button" id="btnClearPrint" class="is-hidden" disabled>Cancella riquadro</button>
@@ -862,6 +951,17 @@
 
     <section class="map-shell" aria-label="Mappa delle segnalazioni">
       <div id="map"></div>
+
+      <div class="terrain-panel" id="terrainPanel" aria-hidden="true">
+        <div class="terrain-toolbar">
+          <div class="terrain-info">
+            <strong>Vista 3D</strong><br>
+            Trascina con il tasto sinistro. Ruota o inclina con il destro.
+          </div>
+          <button type="button" id="btnCloseTerrain">Torna alla mappa 2D</button>
+        </div>
+        <div id="terrainMap"></div>
+      </div>
 
       <aside class="panel" aria-label="Indice delle segnalazioni">
         <h2>Indice segnalazioni</h2>
@@ -1019,6 +1119,7 @@
     const RILIEVI_TABLE = "peonie_rilievi";
     const NOTES_TABLE = "note_rilevatori";
 
+
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     let currentSession = null;
     let allPoints = [];
@@ -1041,11 +1142,16 @@
     const btnTable = document.getElementById("btnTable");
     const btnNotes = document.getElementById("btnNotes");
     const btnMeasure = document.getElementById("btnMeasure");
+    const btnTerrain3d = document.getElementById("btnTerrain3d");
     const btnPrintPdf = document.getElementById("btnPrintPdf");
     const btnCancelPrint = document.getElementById("btnCancelPrint");
     const btnClearPrint = document.getElementById("btnClearPrint");
     const btnGeojson = document.getElementById("btnGeojson");
     const btnKml = document.getElementById("btnKml");
+    const terrainPanel = document.getElementById("terrainPanel");
+    const btnCloseTerrain = document.getElementById("btnCloseTerrain");
+    let terrainMap = null;
+    let terrainLoaded = false;
     const tableModal = document.getElementById("tableModal");
     const tableModalClose = document.getElementById("tableModalClose");
     const tableSearch = document.getElementById("tableSearch");
@@ -1137,6 +1243,7 @@
       btnTable.disabled = true;
       btnNotes.disabled = true;
       btnMeasure.disabled = true;
+      btnTerrain3d.disabled = true;
       btnPrintPdf.disabled = true;
       btnCancelPrint.disabled = true;
       btnClearPrint.disabled = true;
@@ -1160,6 +1267,7 @@
       btnTable.disabled = !logged;
       btnNotes.disabled = !logged;
       btnMeasure.disabled = !logged;
+      btnTerrain3d.disabled = !logged;
       btnPrintPdf.disabled = !logged;
       btnCancelPrint.disabled = true;
       btnClearPrint.disabled = !logged || !printSelectionLayer;
@@ -1228,6 +1336,8 @@
       rilieviLayer.clearLayers();
       heatPointsData = [];
       heatLayer.setLatLngs([]);
+      closeTerrainView();
+      syncTerrainPoints();
       clearPrintSelection(false);
       renderTable();
       renderNotesTable();
@@ -1262,7 +1372,7 @@
     topoBase.addTo(map);
 
     const historicLayer = L.featureGroup().addTo(map);
-    const rilieviLayer = L.featureGroup().addTo(map);
+    const rilieviLayer = L.featureGroup();
     const layer = L.featureGroup().addTo(map);
     const heatLayer = L.heatLayer([], {
       radius: 34,
@@ -1401,6 +1511,31 @@
       `;
     }
 
+    function getHistoricPhotos(p) {
+      return [
+        ["Foto 1", p.photo_1_url || p.foto_1_url || p.photo1_url],
+        ["Foto 2", p.photo_2_url || p.foto_2_url || p.photo2_url]
+      ]
+        .map(([label, url]) => [label, String(url ?? "").trim()])
+        .filter(([, url]) => {
+          const v = url.toLowerCase();
+          return url && v !== "null" && v !== "undefined" && v !== "n.d." && v !== "-" && /^https?:\/\//i.test(url);
+        });
+    }
+
+    function historicPhotoThumbs(p) {
+      const photos = getHistoricPhotos(p);
+      if (!photos.length) return "";
+
+      return `
+        <div class="popup-photos">
+          ${photos.map(([label, url]) =>
+            `<a href="#" class="photo-preview-link" data-photo-url="${escapeHtml(url)}" data-photo-title="${escapeHtml(label + " segnalazione storica")}">${escapeHtml(label)}</a>`
+          ).join("")}
+        </div>
+      `;
+    }
+
     function makePopup(p) {
       return `
         <div class="popup-title">Segnalazione peonia</div>
@@ -1455,6 +1590,7 @@
         <div class="popup-row"><strong>Periodo osservazione:</strong> ${escapeHtml(p.observation_period || "n.d.")}</div>
         <div class="popup-row"><strong>Note:</strong> ${escapeHtml(p.notes || "n.d.")}</div>
         <div class="popup-row"><strong>Coordinate:</strong> ${Number.isFinite(lat) ? lat.toFixed(6) : "n.d."}, ${Number.isFinite(lon) ? lon.toFixed(6) : "n.d."}</div>
+        ${historicPhotoThumbs(p)}
       `;
     }
 
@@ -1623,7 +1759,11 @@
           : row.type === "rilievo"
             ? escapeHtml([p.stato_fenologico, p.campionata ? `Campionata: ${p.campionata}` : ""].filter(Boolean).join("; ") || "—")
             : "—";
-        const foto = row.type === "recent" ? getPhotoCount(p) : "—";
+        const foto = row.type === "recent"
+          ? getPhotoCount(p)
+          : row.type === "historic"
+            ? (getHistoricPhotos(p).length || "—")
+            : "—";
         return `
           <tr>
             <td>${escapeHtml(row.label)}</td>
@@ -1677,7 +1817,9 @@
           individuals_estimated: p.individuals_estimated || null,
           observation_period: p.observation_period || null,
           notes: p.notes || null,
-          data_inserimento: p.created_at || null
+          data_inserimento: p.created_at || null,
+          photo_1_url: getHistoricPhotos(p)[0]?.[1] || null,
+          photo_2_url: getHistoricPhotos(p)[1]?.[1] || null
         }
       }));
 
@@ -1795,6 +1937,7 @@
         const lat = Number(p.lat);
         const lon = Number(p.lon);
         const name = p.compiler || p.place_description || "Segnalazione storica peonia";
+        const historicPhotos = getHistoricPhotos(p);
         const description = [
           `<p><strong>Tipo:</strong> storica</p>`,
           `<p><strong>Compilatore:</strong> ${escapeXml(p.compiler || "n.d.")}</p>`,
@@ -1803,7 +1946,8 @@
           `<p><strong>Individui stimati:</strong> ${escapeXml(p.individuals_estimated || "n.d.")}</p>`,
           `<p><strong>Periodo osservazione:</strong> ${escapeXml(p.observation_period || "n.d.")}</p>`,
           `<p><strong>Note:</strong> ${escapeXml(p.notes || "n.d.")}</p>`,
-          `<p><strong>Coordinate:</strong> ${lat.toFixed(6)}, ${lon.toFixed(6)}</p>`
+          `<p><strong>Coordinate:</strong> ${lat.toFixed(6)}, ${lon.toFixed(6)}</p>`,
+          ...historicPhotos.map(([label, url]) => `<p><a href="${escapeXml(url)}">${escapeXml(label)}</a></p>`)
         ].join("");
 
         return `
@@ -1828,6 +1972,8 @@
         <Data name="observation_period"><value>${escapeXml(p.observation_period || "")}</value></Data>
         <Data name="notes"><value>${escapeXml(p.notes || "")}</value></Data>
         <Data name="data_inserimento"><value>${escapeXml(p.created_at || "")}</value></Data>
+        <Data name="photo_1_url"><value>${escapeXml(historicPhotos[0]?.[1] || "")}</value></Data>
+        <Data name="photo_2_url"><value>${escapeXml(historicPhotos[1]?.[1] || "")}</value></Data>
       </ExtendedData>
       <Point>
         <coordinates>${lon},${lat},0</coordinates>
@@ -2301,7 +2447,7 @@ ${[...recentPlacemarks, ...historicPlacemarks, ...rilieviPlacemarks].join("\n")}
 
         sb
           .from(HISTORIC_TABLE)
-          .select("id, compiler, lat, lon, place_description, itinerary, individuals_estimated, observation_period, notes, created_at")
+          .select("*")
           .not("lat", "is", null)
           .not("lon", "is", null)
           .order("created_at", { ascending: false }),
@@ -2422,7 +2568,12 @@ ${[...recentPlacemarks, ...historicPlacemarks, ...rilieviPlacemarks].join("\n")}
       });
 
       if (total > 0) {
-        const bounds = L.featureGroup([layer, historicLayer, rilieviLayer].filter(g => g.getLayers().length > 0)).getBounds();
+        const visibleBoundsLayers = [
+          layer,
+          historicLayer,
+          ...(map.hasLayer(rilieviLayer) ? [rilieviLayer] : [])
+        ].filter(g => g.getLayers().length > 0);
+        const bounds = L.featureGroup(visibleBoundsLayers).getBounds();
         map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
         if (!historicResult.error) {
           setStatus(`Dati caricati correttamente: ${valid.length} survey, ${validHistoric.length} storiche, ${validRilievi.length} altre segnalazioni.`);
@@ -2431,8 +2582,221 @@ ${[...recentPlacemarks, ...historicPlacemarks, ...rilieviPlacemarks].join("\n")}
         setStatus("Nessun punto disponibile.");
       }
 
+      syncTerrainPoints();
       setTimeout(() => map.invalidateSize(), 150);
     }
+
+    function buildTerrainPointGeoJSON() {
+      const features = [];
+
+      allHistoricPoints.forEach(p => {
+        const lat = Number(p.lat);
+        const lon = Number(p.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+        features.push({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [lon, lat] },
+          properties: {
+            tipo: "Storica",
+            label: p.compiler || p.place_description || "Segnalazione storica",
+            descrizione: p.place_description || p.itinerary || p.notes || "",
+            periodo: p.observation_period || "",
+            color: "#2563eb"
+          }
+        });
+      });
+
+      allRilieviPoints.forEach(p => {
+        const lat = Number(p.lat);
+        const lon = Number(p.long);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+        features.push({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [lon, lat] },
+          properties: {
+            tipo: "Altra segnalazione",
+            label: p.specie_ipotizzata || "Altra segnalazione",
+            descrizione: [p.stato_fenologico, p.densita_popolazione, p.campionata ? `Campionata: ${p.campionata}` : ""].filter(Boolean).join("; "),
+            periodo: p.data_ritrovamento || "",
+            color: "#dc2626"
+          }
+        });
+      });
+
+      allPoints.forEach(p => {
+        const lat = Number(p.lat);
+        const lon = Number(p.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+        features.push({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [lon, lat] },
+          properties: {
+            tipo: "Survey",
+            label: p.compiler || p.name || "Segnalazione survey",
+            descrizione: p.individuals_estimated || p.land_cover || "",
+            periodo: formatDate(p.created_at),
+            color: getColor(p.individuals_estimated || p.land_cover || "")
+          }
+        });
+      });
+
+      return { type: "FeatureCollection", features };
+    }
+
+    function terrainPopupHtml(props) {
+      return `
+        <div class="popup-title">${escapeHtml(props.tipo || "Segnalazione")}</div>
+        <div class="popup-row"><strong>Nome:</strong> ${escapeHtml(props.label || "n.d.")}</div>
+        <div class="popup-row"><strong>Dettagli:</strong> ${escapeHtml(props.descrizione || "n.d.")}</div>
+        <div class="popup-row"><strong>Data/periodo:</strong> ${escapeHtml(props.periodo || "n.d.")}</div>
+      `;
+    }
+
+    function syncTerrainPoints() {
+      if (!terrainMap || !terrainLoaded) return;
+      const data = buildTerrainPointGeoJSON();
+      const source = terrainMap.getSource("peonie-points");
+      if (source) {
+        source.setData(data);
+      }
+    }
+
+    function openTerrainView() {
+      if (!window.maplibregl) {
+        setStatus("Libreria MapLibre GL non caricata: impossibile aprire la vista 3D.", true);
+        return;
+      }
+
+      if (typeof maplibregl.supported === "function" && !maplibregl.supported()) {
+        setStatus("Il browser/dispositivo non supporta WebGL in modo sufficiente per la vista 3D DEM.", true);
+        return;
+      }
+
+      const center = map.getCenter();
+      const centerLngLat = [center.lng, center.lat];
+      const zoom = Math.min(Math.max(map.getZoom(), 6), 16);
+      terrainPanel.classList.add("is-visible");
+      terrainPanel.setAttribute("aria-hidden", "false");
+
+      if (!terrainMap) {
+        terrainMap = new maplibregl.Map({
+          container: "terrainMap",
+          center: centerLngLat,
+          zoom,
+          pitch: 72,
+          bearing: -22,
+          maxPitch: 85,
+          maxZoom: 18,
+          style: {
+            version: 8,
+            sources: {
+              satellite: {
+                type: "raster",
+                tiles: [
+                  "https://mt0.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+                  "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+                  "https://mt2.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+                  "https://mt3.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+                ],
+                tileSize: 256,
+                maxzoom: 20,
+                attribution: "Map data &copy; Google"
+              },
+              terrarium: {
+                type: "raster-dem",
+                tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+                tileSize: 256,
+                maxzoom: 15,
+                encoding: "terrarium",
+                attribution: "Terrain Tiles &copy; AWS Open Data / Mapzen / Joerd"
+              },
+              hillshadeTerrarium: {
+                type: "raster-dem",
+                tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+                tileSize: 256,
+                maxzoom: 15,
+                encoding: "terrarium",
+                attribution: "Terrain Tiles &copy; AWS Open Data / Mapzen / Joerd"
+              }
+            },
+            layers: [
+              { id: "satellite", type: "raster", source: "satellite" },
+              {
+                id: "hillshade",
+                type: "hillshade",
+                source: "hillshadeTerrarium",
+                paint: {
+                  "hillshade-shadow-color": "#3f2f1f",
+                  "hillshade-highlight-color": "#fff7ed",
+                  "hillshade-accent-color": "#6b7280"
+                }
+              }
+            ],
+            terrain: { source: "terrarium", exaggeration: 1.6 },
+            sky: {}
+          }
+        });
+
+        terrainMap.addControl(new maplibregl.NavigationControl({
+          visualizePitch: true,
+          showZoom: true,
+          showCompass: true
+        }), "top-right");
+
+        terrainMap.on("load", () => {
+          terrainLoaded = true;
+          terrainMap.addSource("peonie-points", {
+            type: "geojson",
+            data: buildTerrainPointGeoJSON()
+          });
+
+          terrainMap.addLayer({
+            id: "peonie-points-layer",
+            type: "circle",
+            source: "peonie-points",
+            paint: {
+              "circle-radius": ["case", ["==", ["get", "tipo"], "Survey"], 8, 7],
+              "circle-color": ["get", "color"],
+              "circle-stroke-color": "#ffffff",
+              "circle-stroke-width": 2,
+              "circle-opacity": 0.95
+            }
+          });
+
+          terrainMap.on("click", "peonie-points-layer", (event) => {
+            const feature = event.features && event.features[0];
+            if (!feature) return;
+            new maplibregl.Popup()
+              .setLngLat(feature.geometry.coordinates)
+              .setHTML(terrainPopupHtml(feature.properties || {}))
+              .addTo(terrainMap);
+          });
+
+          terrainMap.on("mouseenter", "peonie-points-layer", () => {
+            terrainMap.getCanvas().style.cursor = "pointer";
+          });
+
+          terrainMap.on("mouseleave", "peonie-points-layer", () => {
+            terrainMap.getCanvas().style.cursor = "";
+          });
+        });
+      } else {
+        terrainMap.jumpTo({ center: centerLngLat, zoom, pitch: 72, bearing: -22 });
+        terrainMap.resize();
+        syncTerrainPoints();
+      }
+
+      setTimeout(() => terrainMap && terrainMap.resize(), 120);
+    }
+
+    function closeTerrainView() {
+      terrainPanel.classList.remove("is-visible");
+      terrainPanel.setAttribute("aria-hidden", "true");
+      map.invalidateSize();
+    }
+
+    btnTerrain3d.addEventListener("click", openTerrainView);
+    btnCloseTerrain.addEventListener("click", closeTerrainView);
 
     btnReload.addEventListener("click", async () => {
       map.invalidateSize();
@@ -2450,6 +2814,7 @@ ${[...recentPlacemarks, ...historicPlacemarks, ...rilieviPlacemarks].join("\n")}
 
     window.addEventListener("resize", () => {
       map.invalidateSize();
+      if (terrainMap) terrainMap.resize();
     });
   </script>
 </body>
