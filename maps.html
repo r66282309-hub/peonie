@@ -25,6 +25,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
   <style>
     :root {
@@ -945,6 +946,8 @@
         <button type="button" id="btnClearPrint" class="is-hidden" disabled>Cancella riquadro</button>
         <button type="button" id="btnGeojson" disabled>Esporta GeoJSON</button>
         <button type="button" id="btnKml" disabled>Esporta KML</button>
+        <button type="button" id="btnImportKml" disabled>Importa KML/KMZ</button>
+        <input id="kmlKmzInput" class="is-hidden" type="file" accept=".kml,.kmz,application/vnd.google-earth.kml+xml,application/vnd.google-earth.kmz" multiple>
         <button type="button" id="btnLogout" class="is-hidden">Esci</button>
       </div>
     </header>
@@ -1118,6 +1121,7 @@
     const HISTORIC_TABLE = "segnalazioni_storiche_peonie";
     const RILIEVI_TABLE = "peonie_rilievi";
     const NOTES_TABLE = "note_rilevatori";
+    const IMPORT_TABLE = "peonie_kml_layers";
 
 
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -1125,8 +1129,10 @@
     let allPoints = [];
     let allHistoricPoints = [];
     let allRilieviPoints = [];
+    let allImportedFeatures = [];
     let allNotes = [];
     const markersById = new Map();
+    const importedLayerGroups = new Map();
     let heatPointsData = [];
     const HEATMAP_MAX_ACTIVE_ZOOM = 13;
 
@@ -1148,6 +1154,8 @@
     const btnClearPrint = document.getElementById("btnClearPrint");
     const btnGeojson = document.getElementById("btnGeojson");
     const btnKml = document.getElementById("btnKml");
+    const btnImportKml = document.getElementById("btnImportKml");
+    const kmlKmzInput = document.getElementById("kmlKmzInput");
     const terrainPanel = document.getElementById("terrainPanel");
     const btnCloseTerrain = document.getElementById("btnCloseTerrain");
     let terrainMap = null;
@@ -1251,6 +1259,7 @@
       btnClearPrint.classList.add("is-hidden");
       btnGeojson.disabled = true;
       btnKml.disabled = true;
+      btnImportKml.disabled = true;
       setStatus("Accesso riservato: effettua il login per caricare i dati.", true);
       setTimeout(() => authEmail.focus(), 80);
     }
@@ -1273,6 +1282,7 @@
       btnClearPrint.disabled = !logged || !printSelectionLayer;
       btnGeojson.disabled = !logged;
       btnKml.disabled = !logged;
+      btnImportKml.disabled = !logged;
       btnLogout.classList.toggle("is-hidden", !logged);
       authUser.classList.toggle("is-hidden", !logged);
       authUser.textContent = logged ? (session.user?.email || "utente autenticato") : "";
@@ -1330,10 +1340,12 @@
       allNotes = [];
       allHistoricPoints = [];
       allRilieviPoints = [];
+      allImportedFeatures = [];
       markersById.clear();
       layer.clearLayers();
       historicLayer.clearLayers();
       rilieviLayer.clearLayers();
+      clearImportedLayers();
       heatPointsData = [];
       heatLayer.setLatLngs([]);
       closeTerrainView();
@@ -1399,7 +1411,7 @@
 
     map.on("zoomend", refreshHeatLayerByZoom);
 
-    L.control.layers(
+    const layerControl = L.control.layers(
       {
         "Topografica": topoBase,
         "Ortofoto": satelliteBase
@@ -1490,6 +1502,291 @@
         hour: "2-digit",
         minute: "2-digit"
       });
+    }
+
+    function normalizeLayerName(fileName) {
+      const base = String(fileName || "layer_kml")
+        .split(/[\\/]/)
+        .pop()
+        .replace(/\.(kml|kmz)$/i, "")
+        .trim();
+      return base || "layer_kml";
+    }
+
+    function getLocalName(node) {
+      return node?.localName || String(node?.nodeName || "").split(":").pop();
+    }
+
+    function getDirectChildText(parent, childName) {
+      const child = Array.from(parent?.children || []).find(el => getLocalName(el) === childName);
+      return child ? String(child.textContent || "").trim() : "";
+    }
+
+    function getDescendantsByLocalName(parent, childName) {
+      return Array.from(parent?.getElementsByTagName("*") || [])
+        .filter(el => getLocalName(el) === childName);
+    }
+
+    function parseCoordinatePairs(text) {
+      return String(text || "")
+        .trim()
+        .split(/\s+/)
+        .map(chunk => chunk.split(",").map(Number))
+        .filter(parts => parts.length >= 2 && Number.isFinite(parts[0]) && Number.isFinite(parts[1]))
+        .map(([lon, lat]) => [lon, lat]);
+    }
+
+    function closePolygonRing(ring) {
+      if (!ring.length) return ring;
+      const first = ring[0];
+      const last = ring[ring.length - 1];
+      if (first[0] !== last[0] || first[1] !== last[1]) {
+        return [...ring, [...first]];
+      }
+      return ring;
+    }
+
+    function extractGeometriesFromPlacemark(placemark) {
+      const geometries = [];
+
+      getDescendantsByLocalName(placemark, "Point").forEach(point => {
+        const coordText = getDescendantsByLocalName(point, "coordinates")[0]?.textContent || "";
+        const coords = parseCoordinatePairs(coordText);
+        if (coords.length) {
+          geometries.push({ type: "Point", coordinates: coords[0] });
+        }
+      });
+
+      getDescendantsByLocalName(placemark, "LineString").forEach(line => {
+        const coordText = getDescendantsByLocalName(line, "coordinates")[0]?.textContent || "";
+        const coords = parseCoordinatePairs(coordText);
+        if (coords.length >= 2) {
+          geometries.push({ type: "LineString", coordinates: coords });
+        }
+      });
+
+      getDescendantsByLocalName(placemark, "Polygon").forEach(poly => {
+        const rings = getDescendantsByLocalName(poly, "LinearRing")
+          .map(ring => parseCoordinatePairs(getDescendantsByLocalName(ring, "coordinates")[0]?.textContent || ""))
+          .filter(coords => coords.length >= 4)
+          .map(closePolygonRing);
+        if (rings.length) {
+          geometries.push({ type: "Polygon", coordinates: rings });
+        }
+      });
+
+      return geometries;
+    }
+
+    function parseKmlToRows(kmlText, layerName) {
+      const doc = new DOMParser().parseFromString(kmlText, "text/xml");
+      const parserError = doc.getElementsByTagName("parsererror")[0];
+      if (parserError) {
+        throw new Error("KML non valido o non leggibile.");
+      }
+
+      const placemarks = getDescendantsByLocalName(doc, "Placemark");
+      const rows = [];
+
+      placemarks.forEach((placemark, index) => {
+        const label = getDirectChildText(placemark, "name") || `${layerName} ${index + 1}`;
+        const geometries = extractGeometriesFromPlacemark(placemark);
+
+        geometries.forEach(geometry => {
+          rows.push({
+            layer_name: layerName,
+            label,
+            geom_type: geometry.type,
+            geometry
+          });
+        });
+      });
+
+      return rows;
+    }
+
+    async function readKmlTextFromFile(file) {
+      const lowerName = String(file.name || "").toLowerCase();
+      if (lowerName.endsWith(".kmz")) {
+        if (!window.JSZip) {
+          throw new Error("JSZip non è disponibile: impossibile leggere file KMZ.");
+        }
+        const zip = await JSZip.loadAsync(file);
+        const entries = Object.values(zip.files || {});
+        const kmlEntry = entries.find(entry => !entry.dir && entry.name.toLowerCase().endsWith(".kml"));
+        if (!kmlEntry) {
+          throw new Error(`Nel KMZ ${file.name} non ho trovato nessun file .kml.`);
+        }
+        return kmlEntry.async("text");
+      }
+      return file.text();
+    }
+
+    function chunkRows(rows, size = 500) {
+      const chunks = [];
+      for (let i = 0; i < rows.length; i += size) {
+        chunks.push(rows.slice(i, i + size));
+      }
+      return chunks;
+    }
+
+    function isValidImportedGeometry(row) {
+      const geometry = typeof row.geometry === "string" ? JSON.parse(row.geometry) : row.geometry;
+      if (!geometry || !geometry.type || !geometry.coordinates) return false;
+      if (geometry.type === "Point") {
+        const [lon, lat] = geometry.coordinates || [];
+        return Number.isFinite(Number(lon)) && Number.isFinite(Number(lat));
+      }
+      if (geometry.type === "LineString") {
+        return Array.isArray(geometry.coordinates) && geometry.coordinates.length >= 2;
+      }
+      if (geometry.type === "Polygon") {
+        return Array.isArray(geometry.coordinates) && geometry.coordinates.length >= 1;
+      }
+      return ["MultiPoint", "MultiLineString", "MultiPolygon"].includes(geometry.type);
+    }
+
+    function rowToImportedFeature(row) {
+      const geometry = typeof row.geometry === "string" ? JSON.parse(row.geometry) : row.geometry;
+      return {
+        type: "Feature",
+        geometry,
+        properties: {
+          id: row.id ?? null,
+          layer_name: row.layer_name || "Layer KML/KMZ",
+          label: row.label || row.layer_name || "Elemento KML/KMZ",
+          geom_type: row.geom_type || geometry?.type || "Geometry"
+        }
+      };
+    }
+
+    function makeImportedPopup(props = {}) {
+      return `
+        <div class="popup-title">${escapeHtml(props.layer_name || "Layer KML/KMZ")}</div>
+        <div class="popup-row"><strong>Etichetta:</strong> ${escapeHtml(props.label || "n.d.")}</div>
+        <div class="popup-row"><strong>Geometria:</strong> ${escapeHtml(props.geom_type || "n.d.")}</div>
+      `;
+    }
+
+    function clearImportedLayers() {
+      importedLayerGroups.forEach(group => {
+        if (map.hasLayer(group)) map.removeLayer(group);
+        layerControl.removeLayer(group);
+      });
+      importedLayerGroups.clear();
+    }
+
+    function rebuildImportedLayers(rows = []) {
+      clearImportedLayers();
+      const byLayer = new Map();
+
+      rows.forEach(row => {
+        try {
+          if (!isValidImportedGeometry(row)) return;
+          const feature = rowToImportedFeature(row);
+          const name = feature.properties.layer_name;
+          if (!byLayer.has(name)) byLayer.set(name, []);
+          byLayer.get(name).push(feature);
+        } catch (error) {
+          console.warn("Geometria KML/KMZ ignorata", error, row);
+        }
+      });
+
+      byLayer.forEach((features, layerName) => {
+        const group = L.geoJSON({ type: "FeatureCollection", features }, {
+          pointToLayer: (_feature, latlng) => L.circleMarker(latlng, {
+            radius: 7,
+            color: "#111827",
+            weight: 2,
+            fillColor: "#14b8a6",
+            fillOpacity: 0.9
+          }),
+          style: () => ({
+            color: "#0f766e",
+            weight: 3,
+            opacity: 0.92,
+            fillColor: "#14b8a6",
+            fillOpacity: 0.18
+          }),
+          onEachFeature: (feature, importedLeafletLayer) => {
+            importedLeafletLayer.bindPopup(makeImportedPopup(feature.properties || {}));
+          }
+        });
+
+        group.addTo(map);
+        layerControl.addOverlay(group, `KML/KMZ: ${escapeHtml(layerName)}`);
+        importedLayerGroups.set(layerName, group);
+      });
+    }
+
+    function getVisibleImportedGroups() {
+      return Array.from(importedLayerGroups.values())
+        .filter(group => map.hasLayer(group) && group.getLayers().length > 0);
+    }
+
+    async function handleKmlKmzImport(event) {
+      const files = Array.from(event.target.files || []);
+      event.target.value = "";
+      if (!files.length) return;
+
+      if (!currentSession) {
+        const ok = await checkSession();
+        if (!ok) return;
+      }
+
+      const invalidFile = files.find(file => !/\.(kml|kmz)$/i.test(file.name || ""));
+      if (invalidFile) {
+        setStatus(`File non supportato: ${invalidFile.name}. Carica solo KML o KMZ.`, true);
+        return;
+      }
+
+      btnImportKml.disabled = true;
+      setStatus(`Importazione di ${files.length} file KML/KMZ…`);
+
+      try {
+        let totalInserted = 0;
+        const importedNames = [];
+
+        for (const file of files) {
+          const layerName = normalizeLayerName(file.name);
+          const kmlText = await readKmlTextFromFile(file);
+          const rows = parseKmlToRows(kmlText, layerName);
+
+          if (!rows.length) {
+            throw new Error(`${file.name}: nessun Placemark con geometria Point, LineString o Polygon.`);
+          }
+
+          const { error: deleteError } = await sb
+            .from(IMPORT_TABLE)
+            .delete()
+            .eq("layer_name", layerName);
+
+          if (deleteError) {
+            throw new Error(`Errore sostituzione layer ${layerName}: ${deleteError.message || "controlla policy Supabase/RLS"}`);
+          }
+
+          for (const chunk of chunkRows(rows)) {
+            const { error: insertError } = await sb
+              .from(IMPORT_TABLE)
+              .insert(chunk);
+
+            if (insertError) {
+              throw new Error(`Errore inserimento layer ${layerName}: ${insertError.message || "controlla policy Supabase/RLS"}`);
+            }
+          }
+
+          totalInserted += rows.length;
+          importedNames.push(layerName);
+        }
+
+        await loadPoints();
+        setStatus(`Import completato: ${totalInserted} geometrie KML/KMZ caricate come layer ${importedNames.join(", ")}.`);
+      } catch (error) {
+        console.error(error);
+        setStatus(`Errore import KML/KMZ: ${error.message || error}`, true);
+      } finally {
+        btnImportKml.disabled = !currentSession;
+      }
     }
 
     function photoLinks(p) {
@@ -2423,6 +2720,14 @@ ${[...recentPlacemarks, ...historicPlacemarks, ...rilieviPlacemarks].join("\n")}
 
     btnGeojson.addEventListener("click", downloadGeoJSON);
     btnKml.addEventListener("click", downloadKML);
+    btnImportKml.addEventListener("click", async () => {
+      if (!currentSession) {
+        const ok = await checkSession();
+        if (!ok) return;
+      }
+      kmlKmzInput.click();
+    });
+    kmlKmzInput.addEventListener("change", handleKmlKmzImport);
 
     async function loadPoints() {
       if (!currentSession) {
@@ -2437,7 +2742,7 @@ ${[...recentPlacemarks, ...historicPlacemarks, ...rilieviPlacemarks].join("\n")}
       heatLayer.setLatLngs([]);
       markersById.clear();
 
-      const [recentResult, historicResult, rilieviResult] = await Promise.all([
+      const [recentResult, historicResult, rilieviResult, importedResult] = await Promise.all([
         sb
           .from(TABLE)
           .select("id, name, compiler, individuals_estimated, land_cover, lat, lon, created_at, photo_site_url, photo_group_url, photo_plant_url, photo_leaf_under_url, photo_url")
@@ -2457,7 +2762,13 @@ ${[...recentPlacemarks, ...historicPlacemarks, ...rilieviPlacemarks].join("\n")}
           .select("id, fid, specie_ipotizzata, data_ritrovamento, stato_fenologico, densita_popolazione, lat, long, campionata, created_at")
           .not("lat", "is", null)
           .not("long", "is", null)
-          .order("data_ritrovamento", { ascending: false })
+          .order("data_ritrovamento", { ascending: false }),
+
+        sb
+          .from(IMPORT_TABLE)
+          .select("id, layer_name, label, geom_type, geometry, created_at")
+          .order("layer_name", { ascending: true })
+          .order("id", { ascending: true })
       ]);
 
       if (recentResult.error) {
@@ -2478,6 +2789,12 @@ ${[...recentPlacemarks, ...historicPlacemarks, ...rilieviPlacemarks].join("\n")}
         console.error(rilieviResult.error);
         allRilieviPoints = [];
         setStatus("Segnalazioni caricate, ma errore sulle altre segnalazioni: " + (rilieviResult.error.message || "controlla policy Supabase/RLS"), true);
+      }
+
+      if (importedResult.error) {
+        console.error(importedResult.error);
+        allImportedFeatures = [];
+        clearImportedLayers();
       }
 
       const valid = (recentResult.data || []).filter(p =>
@@ -2507,9 +2824,19 @@ ${[...recentPlacemarks, ...historicPlacemarks, ...rilieviPlacemarks].join("\n")}
         Number(p.long) <= 180
       );
 
+      const validImported = (importedResult.data || []).filter(row => {
+        try {
+          return isValidImportedGeometry(row);
+        } catch (_error) {
+          return false;
+        }
+      });
+
       allPoints = valid;
       allHistoricPoints = validHistoric;
       allRilieviPoints = validRilievi;
+      allImportedFeatures = validImported;
+      rebuildImportedLayers(validImported);
       renderTable();
       updateSurveyPie([...valid, ...validHistoric]);
 
@@ -2561,25 +2888,31 @@ ${[...recentPlacemarks, ...historicPlacemarks, ...rilieviPlacemarks].join("\n")}
       layer.bringToFront();
 
       const total = valid.length + validHistoric.length + validRilievi.length;
+      const importedTotal = validImported.length;
       document.getElementById("totalPoints").textContent = String(total);
       document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString("it-IT", {
         hour: "2-digit",
         minute: "2-digit"
       });
 
-      if (total > 0) {
-        const visibleBoundsLayers = [
-          layer,
-          historicLayer,
-          ...(map.hasLayer(rilieviLayer) ? [rilieviLayer] : [])
-        ].filter(g => g.getLayers().length > 0);
+      const visibleBoundsLayers = [
+        layer,
+        historicLayer,
+        ...(map.hasLayer(rilieviLayer) ? [rilieviLayer] : []),
+        ...getVisibleImportedGroups()
+      ].filter(g => g.getLayers().length > 0);
+
+      if (visibleBoundsLayers.length > 0) {
         const bounds = L.featureGroup(visibleBoundsLayers).getBounds();
         map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
         if (!historicResult.error) {
-          setStatus(`Dati caricati correttamente: ${valid.length} survey, ${validHistoric.length} storiche, ${validRilievi.length} altre segnalazioni.`);
+          const importMessage = importedResult.error
+            ? " Tabella KML/KMZ non caricata: crea/verifica peonie_kml_layers."
+            : `, ${importedTotal} geometrie KML/KMZ`;
+          setStatus(`Dati caricati correttamente: ${valid.length} survey, ${validHistoric.length} storiche, ${validRilievi.length} altre segnalazioni${importMessage}.`, !!importedResult.error);
         }
       } else {
-        setStatus("Nessun punto disponibile.");
+        setStatus(importedResult.error ? "Nessun punto disponibile. Tabella KML/KMZ non caricata: crea/verifica peonie_kml_layers." : "Nessun punto disponibile.", !!importedResult.error);
       }
 
       syncTerrainPoints();
